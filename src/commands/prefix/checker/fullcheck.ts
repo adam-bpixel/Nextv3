@@ -3,7 +3,7 @@ import type { Command } from '../../../core/types';
 const command: Command = {
   name: "fullcheck",
   aliases: ["fc"],
-  description: "Full profile check across every mutual server: status, roles and dangerous permissions",
+  description: "Check a user's profile, roles, and permissions.",
   usage: "<user mention, ID, or username>",
   category: "Checker",
   logic: "fullcheck",

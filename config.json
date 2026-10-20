@@ -1,7 +1,7 @@
 {
   "prefix": "&",
-  "botName": "NextGen vPro",
-  "slug": "nextgen-vpro-clone",
+  "botName": "Next v3",
+  "slug": "next-v3",
   "ownerId": "",
   "color": 16766720,
   "economy": {
@@ -13,13 +13,22 @@
     ]
   },
   "levels": {
-    "enabled": false,
+    "enabled": true,
     "announce": true,
-    "xpPerMessage": [
-      15,
-      25
-    ],
-    "cooldownSeconds": 60
+    "chat": {
+      "xpPerMessage": [
+        15,
+        25
+      ],
+      "cooldownSeconds": 60
+    },
+    "voice": {
+      "xpPerInterval": [
+        10,
+        20
+      ],
+      "intervalSeconds": 60
+    }
   },
   "messages": {
     "serverOnly": "This command only works in servers.",
@@ -29,6 +38,7 @@
     "cooldown": "⏳ Slow down! You can use this again {time}.",
     "error": "Something went wrong running that command.",
     "noAnswer": "This command was found on the original bot but its answer couldn't be recorded yet.",
-    "notRecorded": "This command exists on the original bot, but its real answer couldn't be recorded (the probing account wasn't allowed to use it). Add your own code to its command file."
+    "notRecorded": "This command exists on the original bot, but its real answer couldn't be recorded (the probing account wasn't allowed to use it). Add your own code to its command file.",
+    "premiumRequired": "This server needs an active **Premium** subscription to use this command. Ask the bot owner, or check `{prefix}subscription server`."
   }
 }

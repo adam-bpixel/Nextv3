@@ -1,5 +1,6 @@
-import { MessageFlags, type ButtonInteraction } from 'discord.js';
+import { type ButtonInteraction } from 'discord.js';
 import { defineRoute } from '../../core/types';
+import { themedReplyFor } from '../../core/usage-replies';
 import { rolesPage } from './info.ui';
 
 const CUSTOM_ID = /^info:roles:(\d{15,22}):(-?\d+)$/;
@@ -14,7 +15,7 @@ export const routes = [
       const [, invokerId, pageText] = parsed as unknown as [string, string, string];
 
       if (interaction.user.id !== invokerId) {
-        await interaction.reply({ content: `Only <@${invokerId}> can use these buttons.`, flags: MessageFlags.Ephemeral, allowedMentions: { parse: [] } });
+        await interaction.reply(themedReplyFor(interaction.guildId, true, 'error', `Only <@${invokerId}> can use these buttons.`));
         return;
       }
 

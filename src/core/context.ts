@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType, MessageFlags } from 'discord.js';
+import { ApplicationCommandOptionType, DiscordAPIError, MessageFlags } from 'discord.js';
 import type {
   APIEmbed,
   APIMessageTopLevelComponent,
@@ -17,6 +17,7 @@ import type {
 import config from './config';
 import { permissionBit, type PermissionName } from './permissions';
 import type { SlashOption } from './types';
+import { cachedColor } from '../features/theme/theme.model';
 
 export type CommandInteraction = ChatInputCommandInteraction | ContextMenuCommandInteraction;
 
@@ -44,6 +45,7 @@ export type NonEmptyArray<T> = readonly [T, ...T[]];
 export interface Ctx {
   source: CtxSource;
   client: Client;
+  prefix: string;
   args: string[];
   text: string;
   isInteraction: boolean;
@@ -78,13 +80,43 @@ function toPayload(payload: string | ReplyPayload): ReplyPayload {
   return typeof payload === 'string' ? { content: payload } : payload;
 }
 
+const SEND_ATTEMPTS = 2;
+
+const isAbortError = (error: unknown): boolean => error instanceof DOMException && error.name === 'AbortError';
+
+async function withAbortRetry<T>(attempt: () => Promise<T>): Promise<T> {
+  for (let tries = 1; tries <= SEND_ATTEMPTS; tries++) {
+    try {
+      return await attempt();
+    } catch (error) {
+      if (tries === SEND_ATTEMPTS || !isAbortError(error)) throw error;
+    }
+  }
+  throw new Error('unreachable');
+}
+
+// The invoking message can be deleted (manual delete, a purge, auto-moderation) between the
+// command starting and the reply going out; Discord then rejects the reply's message_reference
+// instead of just dropping it, so fall back to a plain channel message rather than losing the answer.
+const isUnknownMessageReference = (error: unknown): boolean =>
+  error instanceof DiscordAPIError && error.code === 50035 && error.message.includes('MESSAGE_REFERENCE_UNKNOWN_MESSAGE');
+
 async function sendToMessage(message: Message, payload: ReplyPayload, { reply = true, ping = false }: SendOptions): Promise<Message> {
-  if (reply) return message.reply({ ...payload, allowedMentions: { ...payload.allowedMentions, repliedUser: ping } });
+  if (reply) {
+    try {
+      return await message.reply({ ...payload, allowedMentions: { ...payload.allowedMentions, repliedUser: ping } });
+    } catch (error) {
+      if (!isUnknownMessageReference(error)) throw error;
+    }
+  }
   if (!message.channel.isSendable()) throw new Error(`Channel ${message.channelId} does not accept messages`);
   return message.channel.send(payload);
 }
 
 async function sendToInteraction(interaction: CommandInteraction | MessageComponentInteraction, payload: ReplyPayload): Promise<Message> {
+  if (interaction.deferred && !interaction.replied && (interaction.isChatInputCommand() || interaction.isContextMenuCommand())) {
+    return interaction.editReply(payload);
+  }
   if (!interaction.replied && !interaction.deferred) {
     await interaction.reply(payload);
     return interaction.fetchReply();
@@ -108,7 +140,7 @@ function interactionUserHas(interaction: CommandInteraction | MessageComponentIn
   return permissions !== null && permissions.has(permissionBit(permission));
 }
 
-export function makeContext(source: CtxSource, args: string[] = []): Ctx {
+export function makeContext(source: CtxSource, args: string[] = [], prefix = config.prefix): Ctx {
   const isInteraction = source.kind !== 'message';
   const origin = source.kind === 'message' ? source.message : source.interaction;
   const user = source.kind === 'message' ? source.message.author : source.interaction.user;
@@ -123,6 +155,7 @@ export function makeContext(source: CtxSource, args: string[] = []): Ctx {
   const ctx: Ctx = {
     source,
     client: origin.client,
+    prefix,
     args,
     text: args.join(' '),
     isInteraction,
@@ -135,8 +168,9 @@ export function makeContext(source: CtxSource, args: string[] = []): Ctx {
 
     send(payload, options = {}) {
       const normalized = toPayload(payload);
-      if (source.kind === 'message') return sendToMessage(source.message, normalized, options);
-      return sendToInteraction(source.interaction, normalized);
+      return withAbortRetry(() =>
+        source.kind === 'message' ? sendToMessage(source.message, normalized, options) : sendToInteraction(source.interaction, normalized),
+      );
     },
 
     whisper(content) {
@@ -144,7 +178,8 @@ export function makeContext(source: CtxSource, args: string[] = []): Ctx {
     },
 
     embed({ color, ...rest } = {}) {
-      return { embeds: [{ color: color ?? config.color, ...rest }] };
+      const guildColor = ctx.guild ? cachedColor(ctx.guild.id) : undefined;
+      return { embeds: [{ color: color ?? guildColor ?? config.color, ...rest }] };
     },
 
     hasPermission(permission) {

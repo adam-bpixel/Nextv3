@@ -3,8 +3,9 @@ import type { Ctx } from './context';
 import type { PermissionName } from './permissions';
 import type { LogicName } from '../features/logic';
 import type { Recording } from '../features/recordings/recording.model';
+import type { JsonValue } from './json';
 
-export const COMMAND_KINDS = ['ok', 'usage', 'permission', 'silent', 'skipped'] as const;
+export const COMMAND_KINDS = ['ok', 'usage', 'permission', 'premium', 'silent', 'skipped'] as const;
 export type CommandKind = (typeof COMMAND_KINDS)[number];
 
 export const MENU_TYPES = ['slash', 'user', 'message'] as const;
@@ -38,7 +39,8 @@ interface CommandBehavior {
   voice: boolean;
   dm: boolean;
   kind: CommandKind;
-  recordingFile: string;
+  recordingFile: string | null;
+  recordingData?: JsonValue;
   execute?: CustomExecute;
 }
 

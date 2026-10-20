@@ -1,4 +1,4 @@
-# Analysis of NextGen vPro
+# Bot Feature Analysis
 
 - Bot ID `1406664019741249586`, prefix `&`, help command `&help`
 - Probed in 4088.9s

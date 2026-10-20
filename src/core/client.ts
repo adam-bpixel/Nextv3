@@ -9,6 +9,7 @@ const REST_REQUEST_TIMEOUT_MS = 30_000;
 export const GATEWAY_INTENTS = [
   GatewayIntentBits.Guilds,
   GatewayIntentBits.GuildMembers,
+  GatewayIntentBits.GuildPresences,
   GatewayIntentBits.GuildMessages,
   GatewayIntentBits.GuildVoiceStates,
   GatewayIntentBits.DirectMessages,
@@ -22,6 +23,7 @@ export class BotClient extends Client {
   readonly aliases = new Collection<string, string>();
   readonly slashCommands = new Collection<string, LoadedSlashCommand>();
   readonly routes: InteractionRoute[] = [];
+  fleetId: string | null = null;
 
   constructor() {
     super({

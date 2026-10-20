@@ -7,7 +7,7 @@ import type { Ctx, ReplyPayload } from '../../core/context';
 import { toEmbeds, toTextInput, toTopLevelComponents } from './components.schema';
 import type { Flow, Snapshot } from './recording.model';
 
-const TOKEN_NAMES = ['mention', 'username', 'displayName', 'userId', 'avatar', 'guild'] as const;
+const TOKEN_NAMES = ['mention', 'username', 'displayName', 'userId', 'avatar', 'guild', 'botName'] as const;
 type TokenName = (typeof TOKEN_NAMES)[number];
 export type Tokens = Record<TokenName, string>;
 
@@ -34,6 +34,7 @@ export function tokensOf(ctx: Ctx): Tokens {
     userId: user.id,
     avatar: user.displayAvatarURL({ extension: 'png', size: AVATAR_SIZE }),
     guild: ctx.guild ? ctx.guild.name : GUILD_FALLBACK_NAME,
+    botName: ctx.client.user?.username ?? config.botName,
   };
 }
 

@@ -31,3 +31,11 @@ export async function richest(limit: number): Promise<{ userId: string; wallet: 
   const entries: Entry[] = await db.top(ECONOMY_COLLECTION, TOTAL_FIELD, limit);
   return entries.map((entry) => ({ userId: entry.key, wallet: parseWallet(entry.value) }));
 }
+
+
+export async function richestFull(): Promise<{ userId: string; wallet: Wallet }[]> {
+  const entries = await db.all(ECONOMY_COLLECTION);
+  return entries
+    .map((entry) => ({ userId: entry.key, wallet: parseWallet(entry.value) }))
+    .sort((a, b) => b.wallet.total - a.wallet.total);
+}

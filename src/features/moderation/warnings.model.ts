@@ -28,3 +28,13 @@ export async function addWarning(guildId: string, userId: string, warning: Warni
   await db.set(WARNINGS_COLLECTION, warningsKey(guildId, userId), warnings);
   return warnings;
 }
+
+export async function removeLastWarning(guildId: string, userId: string): Promise<Warning[]> {
+  const warnings = (await listWarnings(guildId, userId)).slice(0, -1);
+  await db.set(WARNINGS_COLLECTION, warningsKey(guildId, userId), warnings);
+  return warnings;
+}
+
+export async function clearWarnings(guildId: string, userId: string): Promise<void> {
+  await db.set(WARNINGS_COLLECTION, warningsKey(guildId, userId), []);
+}

@@ -27,6 +27,11 @@ export function loadModule(file: string): unknown {
   return loaded;
 }
 
+export function clearModule(file: string): void {
+  const resolved = requireModule.resolve(file);
+  delete requireModule.cache[resolved];
+}
+
 export function defaultExport(loaded: unknown): unknown {
   if (typeof loaded === 'object' && loaded !== null && 'default' in loaded) return loaded.default;
   return loaded;

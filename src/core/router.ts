@@ -1,9 +1,14 @@
-import { MessageFlags, type BaseInteraction, type Interaction } from 'discord.js';
+import { type BaseInteraction, type Interaction } from 'discord.js';
+import { isMessageClaimed } from './collectorClaims';
 import { makeContext, slashArgs, type CommandInteraction } from './context';
 import * as pipeline from './pipeline';
 import { slashPath } from './slash';
 import { defineRoute, type InteractionRoute } from './types';
 import { asBotClient, type BotClient } from './client';
+import { themedReplyFor } from './usage-replies';
+import { getGuildPrefix } from '../features/prefix/prefix.model';
+import { getBlacklistEntry, isWorkMode } from '../features/owner/owner.model';
+import config from './config';
 
 export const UNROUTED_MODAL_ACK = '✅ Received.';
 
@@ -13,7 +18,8 @@ export const commandRoute = defineRoute<CommandInteraction>({
   async handle(interaction) {
     const command = asBotClient(interaction.client).slashCommands.get(slashPath(interaction));
     if (!command) return;
-    const ctx = makeContext({ kind: 'command', interaction }, slashArgs(interaction, command.options));
+    const prefix = await getGuildPrefix(interaction.guildId);
+    const ctx = makeContext({ kind: 'command', interaction }, slashArgs(interaction, command.options), prefix);
     await pipeline.run(ctx, command);
   },
 });
@@ -36,12 +42,27 @@ export function matchingRoutes(routes: readonly InteractionRoute[], interaction:
 }
 
 async function acknowledgeUnrouted(interaction: Interaction): Promise<void> {
-  if (interaction.isMessageComponent()) await interaction.deferUpdate();
-  else if (interaction.isModalSubmit()) await interaction.reply({ content: UNROUTED_MODAL_ACK, flags: MessageFlags.Ephemeral });
+  if (interaction.isMessageComponent()) {
+    if (isMessageClaimed(interaction.message.id)) return;
+    await interaction.deferUpdate().catch(() => undefined);
+  } else if (interaction.isModalSubmit()) {
+    await interaction.reply(themedReplyFor(interaction.guildId, true, 'success', 'Received.'));
+  }
 }
 
 export async function routeInteraction(client: BotClient, interaction: Interaction): Promise<void> {
   try {
+    if (interaction.user.id !== config.ownerId) {
+      if (await isWorkMode()) {
+        if (interaction.isRepliable()) await interaction.reply(themedReplyFor(interaction.guildId, true, 'error', 'The bot is currently in owner work mode.'));
+        return;
+      }
+      const blocked = await getBlacklistEntry(interaction.user.id);
+      if (blocked) {
+        if (interaction.isRepliable()) await interaction.reply(themedReplyFor(interaction.guildId, true, 'error', `You cannot use the bot.\n- Reason: ${blocked.reason}`));
+        return;
+      }
+    }
     const matching = matchingRoutes([commandRoute, ...client.routes], interaction);
     if (matching.length > 1) warnOverlap(interaction, matching);
     const [route] = matching;

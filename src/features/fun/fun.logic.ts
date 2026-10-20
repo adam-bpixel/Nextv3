@@ -1,6 +1,8 @@
 import type { NonEmptyArray } from '../../core/context';
 import { fail } from '../../core/replies';
 import type { CommandHandler } from '../../core/types';
+import { successReply } from '../../core/usage-replies';
+import { gameCard } from '../games/ui';
 
 const DICE_NOTATION = /^(\d{1,2})?d(\d{1,4})$/i;
 const MAX_DICE = 20;
@@ -26,30 +28,20 @@ function rollPlan(argument: string | undefined): { count: number; sides: number 
 }
 
 export const funLogic = {
-  async coinflip(ctx) {
-    await ctx.send(ctx.embed({ title: '🪙 Coin flip', description: `It's **${ctx.random(['Heads', 'Tails'])}**!` }));
-    return 'completed';
-  },
-
   async roll(ctx) {
     const { count, sides } = rollPlan(ctx.args[0]);
     const rolls = Array.from({ length: count }, () => ctx.randInt(1, sides));
     const total = rolls.reduce((sum, roll) => sum + roll, 0);
-    await ctx.send(ctx.embed({ title: '🎲 Roll', description: count > 1 ? `${rolls.join(' + ')} = **${total}**` : `You rolled **${total}** (1-${sides})` }));
+    const result = count > 1 ? `${rolls.join(' + ')} = **${total}**` : `You rolled **${total}** (1-${sides})`;
+    await ctx.send(gameCard(ctx, `# Roll\n${result}`));
     return 'completed';
   },
 
   async '8ball'(ctx) {
     if (!ctx.text) return fail(ctx, 'Ask me a question!');
-    await ctx.send(
-      ctx.embed({
-        title: '🎱 Magic 8-ball',
-        fields: [
-          { name: 'Question', value: ctx.text.slice(0, MAX_QUESTION_LENGTH) },
-          { name: 'Answer', value: ctx.random(EIGHT_BALL_ANSWERS) },
-        ],
-      }),
-    );
+    const question = ctx.text.slice(0, MAX_QUESTION_LENGTH);
+    const answer = ctx.random(EIGHT_BALL_ANSWERS);
+    await ctx.send(gameCard(ctx, `# Magic 8-ball\n**${question}**\n\n${answer}`));
     return 'completed';
   },
 
@@ -66,7 +58,7 @@ export const funLogic = {
     if (!channel?.isSendable()) return fail(ctx, "I can't talk in this channel.");
     const echo = { content: ctx.text.slice(0, DISCORD_MESSAGE_LIMIT), allowedMentions: { parse: [] } };
     if (ctx.source.kind === 'message') await ctx.source.message.delete().catch(() => undefined);
-    else await ctx.whisper('Sent.');
+    else await ctx.send(successReply(ctx, 'Sent.'));
     await channel.send(echo);
     return 'completed';
   },

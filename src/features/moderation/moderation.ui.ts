@@ -1,5 +1,6 @@
 import type { APIEmbed } from 'discord.js';
 import { discordTimestamp, formatDuration } from '../../core/format';
+import type { AuditLogRecord } from './moderation.service';
 import type { Warning } from './warnings.model';
 
 const LISTED_WARNINGS = 10;
@@ -33,4 +34,11 @@ export const warnedEmbed = (username: string, total: number, reason: string): AP
 export function warningsEmbed(username: string, warnings: readonly Warning[]): APIEmbed {
   const lines = warnings.slice(-LISTED_WARNINGS).map((warning, index) => `**${index + 1}.** ${warning.reason} — <@${warning.by}> ${discordTimestamp(warning.at)}`);
   return { title: `Warnings of ${username} (${warnings.length})`, description: lines.join('\n') || 'No warnings.' };
+}
+
+export function auditLogEmbed(title: string, username: string, entries: readonly AuditLogRecord[]): APIEmbed {
+  const lines = entries.map(
+    (entry, index) => `**${index + 1}.** ${discordTimestamp(entry.at, 'f')} — by ${entry.executorId ? `<@${entry.executorId}>` : 'Unknown'}\n> ${entry.reason}`,
+  );
+  return { title: `${title} for ${username}`, description: lines.join('\n') || `No ${title.toLowerCase()} were found for that user.` };
 }

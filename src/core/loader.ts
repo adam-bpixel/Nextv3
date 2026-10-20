@@ -1,11 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { Events, type BaseInteraction } from 'discord.js';
-import config from './config';
-import { isRecord, parseJsonText } from './json';
+import { isRecord } from './json';
 import { SOURCE_EXTENSION, defaultExport, listSourceFiles, loadModule } from './modules';
 import { toPrefixCommand, toSlashCommand } from './command-schema';
-import { parseRecording, type Recording } from '../features/recordings/recording.model';
+import { EMPTY_RECORDING, parseRecording } from '../features/recordings/recording.model';
 import { clearFlowIndex, indexRecording, setMentionRecording } from '../features/recordings/flows.model';
 import type { BotClient } from './client';
 import type { BotEventName, InteractionRoute } from './types';
@@ -15,8 +14,6 @@ export const PREFIX_COMMANDS_DIR = path.join(SRC_DIR, 'commands', 'prefix');
 export const SLASH_COMMANDS_DIR = path.join(SRC_DIR, 'commands', 'slash');
 export const EVENTS_DIR = path.join(SRC_DIR, 'events');
 export const FEATURES_DIR = path.join(SRC_DIR, 'features');
-export const RECORDINGS_DIR = path.join(config.root, 'data', 'recordings');
-const MENTION_RECORDING_FILE = 'mention.json';
 const FEATURE_ENTRY = 'index';
 
 export class DuplicateNameError extends Error {
@@ -31,11 +28,6 @@ export interface LoadedEvent {
   once: boolean;
   file: string;
   execute(...args: unknown[]): Promise<unknown>;
-}
-
-export function readRecording(recordingFile: string): Recording {
-  const file = path.join(RECORDINGS_DIR, recordingFile);
-  return parseRecording(parseJsonText(fs.readFileSync(file, 'utf8'), recordingFile), recordingFile);
 }
 
 function claim(owners: Map<string, string>, kind: string, name: string, file: string): void {
@@ -54,7 +46,7 @@ export function loadCommands(client: BotClient): void {
     const command = toPrefixCommand(defaultExport(loadModule(file)), file);
     claim(prefixOwners, 'prefix command or alias', command.name, file);
     for (const alias of command.aliases) claim(prefixOwners, 'prefix command or alias', alias, file);
-    const recording = readRecording(command.recordingFile);
+    const recording = command.recordingData === undefined ? EMPTY_RECORDING : parseRecording(command.recordingData, file);
     indexRecording(recording);
     client.commands.set(command.name, { ...command, recording });
     for (const alias of command.aliases) client.aliases.set(alias, command.name);
@@ -63,11 +55,11 @@ export function loadCommands(client: BotClient): void {
   for (const file of listSourceFiles(SLASH_COMMANDS_DIR)) {
     const command = toSlashCommand(defaultExport(loadModule(file)), file);
     claim(slashOwners, 'slash command', command.path, file);
-    const recording = readRecording(command.recordingFile);
+    const recording = command.recordingData === undefined ? EMPTY_RECORDING : parseRecording(command.recordingData, file);
     indexRecording(recording);
     client.slashCommands.set(command.path, { ...command, recording });
   }
-  setMentionRecording(readRecording(MENTION_RECORDING_FILE));
+  setMentionRecording(EMPTY_RECORDING);
 }
 
 const EVENT_NAMES: readonly string[] = Object.values(Events);

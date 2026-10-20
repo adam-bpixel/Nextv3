@@ -15,8 +15,9 @@ import {
 export const PROJECT_ROOT = path.join(__dirname, '..', '..');
 const CONFIG_FILE = path.join(PROJECT_ROOT, 'config.json');
 const DEFAULT_DATABASE_NAME = 'bot';
+const DEFAULT_API_PORT = 3000;
 
-export const MESSAGE_KEYS = ['serverOnly', 'ownerOnly', 'missingPermission', 'joinVoice', 'cooldown', 'error', 'noAnswer', 'notRecorded'] as const;
+export const MESSAGE_KEYS = ['serverOnly', 'ownerOnly', 'missingPermission', 'joinVoice', 'cooldown', 'error', 'noAnswer', 'notRecorded', 'premiumRequired'] as const;
 export type MessageKey = (typeof MESSAGE_KEYS)[number];
 
 export type Range = readonly [low: number, high: number];
@@ -27,13 +28,23 @@ export interface Config {
   slug: string;
   color: number;
   economy: { currency: string; daily: number; work: Range };
-  levels: { enabled: boolean; announce: boolean; xpPerMessage: Range; cooldownSeconds: number };
+  levels: {
+    enabled: boolean;
+    announce: boolean;
+    chat: { xpPerMessage: Range; cooldownSeconds: number };
+    voice: { xpPerInterval: Range; intervalSeconds: number };
+  };
   messages: Readonly<Record<MessageKey, string>>;
   root: string;
   token: string;
   ownerId: string;
+  supportServerUrl: string;
+  webhookUrl: string;
   mongoUri: string;
   mongoDb: string;
+  apiPort: number;
+  apiKey: string;
+  emojisServerId: string;
 }
 
 function readRange(source: JsonObject, key: string, where: string): Range {
@@ -55,6 +66,7 @@ function readMessages(source: JsonObject, where: string): Record<MessageKey, str
     error: read('error'),
     noAnswer: read('noAnswer'),
     notRecorded: read('notRecorded'),
+    premiumRequired: read('premiumRequired'),
   };
 }
 
@@ -62,6 +74,8 @@ export function parseConfig(fileContents: JsonObject, env: NodeJS.ProcessEnv): C
   const where = 'config.json';
   const economy = readObject(fileContents, 'economy', where);
   const levels = readObject(fileContents, 'levels', where);
+  const levelsChat = readObject(levels, 'chat', `${where}.levels`);
+  const levelsVoice = readObject(levels, 'voice', `${where}.levels`);
   const slug = readString(fileContents, 'slug', where);
   const fileOwnerId = fileContents.ownerId;
   return {
@@ -77,15 +91,26 @@ export function parseConfig(fileContents: JsonObject, env: NodeJS.ProcessEnv): C
     levels: {
       enabled: readOptionalBoolean(levels, 'enabled', `${where}.levels`) ?? false,
       announce: readOptionalBoolean(levels, 'announce', `${where}.levels`) ?? false,
-      xpPerMessage: readRange(levels, 'xpPerMessage', `${where}.levels`),
-      cooldownSeconds: readNumber(levels, 'cooldownSeconds', `${where}.levels`),
+      chat: {
+        xpPerMessage: readRange(levelsChat, 'xpPerMessage', `${where}.levels.chat`),
+        cooldownSeconds: readNumber(levelsChat, 'cooldownSeconds', `${where}.levels.chat`),
+      },
+      voice: {
+        xpPerInterval: readRange(levelsVoice, 'xpPerInterval', `${where}.levels.voice`),
+        intervalSeconds: readNumber(levelsVoice, 'intervalSeconds', `${where}.levels.voice`),
+      },
     },
     messages: readMessages(fileContents, where),
     root: PROJECT_ROOT,
     token: env.DISCORD_TOKEN || '',
     ownerId: env.OWNER_ID || (typeof fileOwnerId === 'string' ? fileOwnerId : ''),
+    supportServerUrl: env.SUPPORT_SERVER_URL || '',
+    webhookUrl: env.WEBHOOK_URL || '',
     mongoUri: env.MONGODB_URI || '',
     mongoDb: env.MONGODB_DB || slug || DEFAULT_DATABASE_NAME,
+    apiPort: Number(env.API_PORT) || DEFAULT_API_PORT,
+    apiKey: env.API_KEY || '',
+    emojisServerId: env.EMOJIS_SERVER_ID || '',
   };
 }
 

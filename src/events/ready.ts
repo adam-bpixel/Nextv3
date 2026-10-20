@@ -5,6 +5,17 @@ import { printStartupInfo } from '../core/banner';
 import { definitions } from '../core/slash';
 import { defineEvent } from '../core/types';
 import { isConfigured, warmUp } from '../features/checker/selfbot';
+import { startVoiceXpTracking } from '../features/levels/voiceTracker';
+import { loadThemeCache } from '../features/theme/theme.model';
+import { rehydrateClanVoiceSessions } from '../features/clans/clans.voice';
+import { primeInviteCache } from '../features/invites/inviteTracker';
+
+const COMMAND_REGISTER_ATTEMPTS = 3;
+const COMMAND_REGISTER_RETRY_DELAY_MS = 2000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export default defineEvent({
   name: Events.ClientReady,
@@ -12,21 +23,38 @@ export default defineEvent({
   async execute(readyClient) {
     const client = asBotClient(readyClient);
     const slash = [...client.slashCommands.values()];
+    await loadThemeCache();
     printStartupInfo({
       tag: readyClient.user.tag,
       prefix: config.prefix,
       prefixCommands: client.commands.size,
       slashCommands: slash.length,
-      storage: config.mongoUri ? `MongoDB (${config.mongoDb})` : 'data/db.json',
+      storage: `MongoDB ${config.mongoDb}`,
       checkerSelfbot: isConfigured() ? 'connecting' : 'not configured',
     });
     warmUp();
+    startVoiceXpTracking(readyClient);
+    await rehydrateClanVoiceSessions(readyClient);
+    await Promise.all([...readyClient.guilds.cache.values()].map((guild) => primeInviteCache(guild)));
+    if (config.emojisServerId && !readyClient.guilds.cache.has(config.emojisServerId)) {
+      const warning = `I'm not in the configured emoji server (ID \`${config.emojisServerId}\`) — I need to be a member of it to render the bot's custom emojis reliably. Invite me there manually.`;
+      console.warn(warning);
+      if (config.ownerId) {
+        const owner = await readyClient.users.fetch(config.ownerId).catch(() => null);
+        await owner?.send(warning).catch(() => undefined);
+      }
+    }
     if (!slash.length) return;
-    try {
-      await readyClient.application.commands.set(definitions(slash));
-      console.log('Slash/context-menu commands registered.');
-    } catch (error) {
-      console.error('Could not register the slash/context-menu commands:', error);
+    for (let attempt = 1; attempt <= COMMAND_REGISTER_ATTEMPTS; attempt++) {
+      try {
+        await readyClient.application.commands.set(definitions(slash));
+        console.log('Slash/context-menu commands registered.');
+        break;
+      } catch (error) {
+        const isLastAttempt = attempt === COMMAND_REGISTER_ATTEMPTS;
+        console.error(`Could not register the slash/context-menu commands (attempt ${attempt}/${COMMAND_REGISTER_ATTEMPTS}):`, error);
+        if (!isLastAttempt) await sleep(COMMAND_REGISTER_RETRY_DELAY_MS * attempt);
+      }
     }
   },
 });

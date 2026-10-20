@@ -1,12 +1,15 @@
 import type { Message, MessageComponentInteraction } from 'discord.js';
 import { MessageFlags } from 'discord.js';
 import config from '../../core/config';
+import { isRecord } from '../../core/json';
 import * as state from '../../core/state';
 import { makeContext, pickRandom, type Ctx } from '../../core/context';
 import type { CommandOutcome, LoadedCommand } from '../../core/types';
 import { allFlows, flowById, mention } from './flows.model';
 import type { Flow, Snapshot, Source, Transition } from './recording.model';
 import { buildEdit, buildMessage, buildModal, isEmpty, tokensOf, type Tokens } from './recordings.ui';
+import { errorReply, successReply, usageReply } from '../../core/usage-replies';
+import { getGuildPrefix } from '../prefix/prefix.model';
 
 function flowFor(snapshot: Snapshot, source: Source | null): Flow | null {
   if (!source) return null;
@@ -57,20 +60,101 @@ function pickSource(ctx: Ctx, command: LoadedCommand): Source {
 
 const outcomeOf = (sent: boolean): CommandOutcome => (sent ? 'completed' : 'skipped');
 
+function textBlocks(replies: readonly Snapshot[]): string[] {
+  const blocks: string[] = [];
+  const collect = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      for (const item of value) collect(item);
+      return;
+    }
+    if (!isRecord(value)) return;
+    if (value.type === 10 && typeof value.content === 'string') blocks.push(value.content);
+    for (const [key, item] of Object.entries(value)) if (key !== 'content') collect(item);
+  };
+
+  for (const reply of replies) {
+    if (reply.content) blocks.push(reply.content);
+    collect(reply.components);
+  }
+  return blocks;
+}
+
+function noticeText(blocks: readonly string[], heading: RegExp): string | null {
+  const headingIndex = blocks.findIndex((block) => heading.test(block.trim()));
+  if (headingIndex < 0) return null;
+  const message = blocks
+    .slice(headingIndex)
+    .map((block, index) => (index === 0 ? block.replace(heading, '') : block))
+    .filter((block) => !block.trim().startsWith('-#'))
+    .join('\n')
+    .trim();
+  return message || null;
+}
+
+function usageText(replies: readonly Snapshot[], prefix: string): string | null {
+  const message = noticeText(textBlocks(replies), /^#{0,3}\s*Invalid (?:Usage|Subcommand)\s*/i);
+  return message?.replace(/&(?=[a-z0-9])/gi, () => prefix) ?? null;
+}
+
+function errorText(replies: readonly Snapshot[]): string | null {
+  const message = noticeText(
+    textBlocks(replies),
+    /^#{0,3}\s*(?:Error\b|Permission Denied\b|Not In Voice Channel\b|Not Found\b|Invalid Channel\b|Polls Not Enabled\b|Gender Not Set\b|Not Configured\b|Incomplete\b|No Auto-replies to Reset\b|Jail System (?:Incomplete|Not Configured)\b|Verification System (?:Incomplete|Not Configured|Not Fully Configured)\b|Apply Panel Missing\b|Missing JSON\b)\s*/i,
+  );
+  if (!message) return null;
+
+  const setupInstructions = /^(.*?)\.\s*Please use\s+(`\/[^`]+`)\s+to configure\.?$/i.exec(message);
+  if (setupInstructions) {
+    const command = setupInstructions[2] === '`/jail-setup`' ? '`/setup jail`' : setupInstructions[2] === '`/verif-setup`' ? '`/setup verification`' : setupInstructions[2];
+    return `- ${setupInstructions[1]}\n- Use: ${command} to configure.`;
+  }
+  return message;
+}
+
+function successText(replies: readonly Snapshot[]): string | null {
+  return noticeText(
+    textBlocks(replies),
+    /^#{0,3}\s*(?:AFK Status Set\b|Auto-reply Added\/Updated\b|Channel (?:Hidden|Locked|Shown|Timelocked|Unlocked)\b|Reminder Set\b|Temp Channel Cleanup Complete\b)\s*/i,
+  );
+}
+
 export async function replayCommand(ctx: Ctx, command: LoadedCommand): Promise<CommandOutcome> {
   const { recording } = command;
   const asked = (ctx.args[0] ?? '').toLowerCase();
   const detail = asked ? recording.details.get(asked) : undefined;
-  if (detail) return outcomeOf(await sendReplies(ctx, detail));
+  if (detail) {
+    if (await replayNotice(ctx, detail)) return 'completed';
+    return outcomeOf(await sendReplies(ctx, detail));
+  }
   if (command.kind === 'permission') {
-    await ctx.whisper(config.messages.notRecorded);
+    await ctx.send(errorReply(ctx, config.messages.notRecorded));
     return 'completed';
   }
   const source = pickSource(ctx, command);
+  if (await replayNotice(ctx, source.replies)) return 'completed';
   await react(ctx, source.reactions);
   const sent = await sendReplies(ctx, source.replies, source);
-  if (!sent && ctx.isInteraction) await ctx.whisper(config.messages.noAnswer);
+  if (!sent && ctx.isInteraction) await ctx.send(errorReply(ctx, config.messages.noAnswer));
   return outcomeOf(sent);
+}
+
+async function replayNotice(ctx: Ctx, replies: readonly Snapshot[]): Promise<boolean> {
+  const recordedUsage = usageText(replies, ctx.prefix);
+  if (recordedUsage) {
+    await ctx.send(usageReply(ctx, recordedUsage));
+    return true;
+  }
+  const recordedError = errorText(replies);
+  if (recordedError) {
+    await ctx.send(errorReply(ctx, recordedError));
+    return true;
+  }
+  const recordedSuccess = successText(replies);
+  if (recordedSuccess) {
+    await ctx.send(successReply(ctx, recordedSuccess));
+    return true;
+  }
+  return false;
 }
 
 export async function replayMention(message: Message): Promise<boolean> {
@@ -130,7 +214,8 @@ export async function handleComponent(interaction: MessageComponentInteraction):
     return;
   }
   const { flow, transition } = located;
-  const ctx = makeContext({ kind: 'component', interaction });
+  const prefix = await getGuildPrefix(interaction.guildId);
+  const ctx = makeContext({ kind: 'component', interaction }, [], prefix);
   const tokens = tokensOf(ctx);
   if (transition.kind === 'update' && transition.to) {
     await interaction.update(buildEdit(stateSnapshot(flow, transition.to), tokens, flow));

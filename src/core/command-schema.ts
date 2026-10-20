@@ -1,6 +1,6 @@
 import { ApplicationCommandOptionType } from 'discord.js';
 import { isLogicName } from '../features/logic';
-import { isRecord } from './json';
+import { isRecord, toJsonValue } from './json';
 import { isPermissionName, type PermissionName } from './permissions';
 import {
   COMMAND_KINDS,
@@ -95,10 +95,12 @@ function behaviorOf(source: Fields, file: string) {
     voice: field(source, 'voice', file, 'a boolean', isBoolean),
     dm: field(source, 'dm', file, 'a boolean', isBoolean),
     kind: field(source, 'kind', file, COMMAND_KINDS.join(' | '), isCommandKind),
-    recordingFile: field(source, 'recordingFile', file, 'a string', isString),
+    recordingFile: field(source, 'recordingFile', file, 'a string or null', isNullableString),
   };
+  const recordingData = source.recordingData;
+  const inlineRecording = recordingData === undefined ? {} : { recordingData: toJsonValue(recordingData, `${file}.recordingData`) };
   const execute = toCustomExecute(source, file);
-  return execute ? { ...behavior, execute } : behavior;
+  return execute ? { ...behavior, ...inlineRecording, execute } : { ...behavior, ...inlineRecording };
 }
 
 export function toPrefixCommand(value: unknown, file: string): PrefixCommand {

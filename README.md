@@ -1,448 +1,296 @@
-# NextGen vPro (replica)
+# Next v3
 
-A discord.js (TypeScript) bot rebuilt from what NextGen vPro answered to its commands (prefix
-`&`), recorded through a probing account. **ANALYSIS.md** is the detailed write-up of what
-was found.
+> A comprehensive, production-ready Discord bot built with discord.js and TypeScript
+>
+> **Features:** Moderation · Security · Leveling · Economy · Clans · Verification · Jail System · Voice Tools · Premium Customization · Utilities & Games
 
-## Run it
+An all-in-one Discord bot designed for professional server management. Features a unified component-based interface, REST API integration, MongoDB persistence, and support for both prefix and slash commands with advanced permission handling.
 
-1. Install Node.js 18.18 or newer (20+ recommended).
-2. `npm install`
-3. Copy `.env.example` to `.env` and put your bot's token in it.
-4. `npm start` runs the TypeScript directly with tsx. `npm run build` compiles to `dist/` and
-   `npm run start:prod` runs the compiled bot.
-5. Before every commit: `npm run check` (typecheck + lint + build + tests). None of it needs a
-   token, a database or a network connection.
+## Core Features
 
-In the Developer Portal's Bot tab, turn on **Message Content Intent** (privileged; prefix commands
-need it), then invite the bot with the `bot` and `applications.commands` scopes.
+**🛡️ Moderation & Safety**
+Ban, kick, timeout, softban, warnings, slowmode, lock/unlock, channel purge, audit logging, and alt-account detection. All toggleable per server with comprehensive logging.
 
-Storage (economy, levels, warnings, cooldowns, button state): set `MONGODB_URI` in `.env` to use
-MongoDB; without it everything is kept in `data/db.json`. The variable is `MONGODB_URI`, not
-`MONGO_URI`: the bot prints a warning when only `MONGO_URI` is set. The JSON store batches writes
-for 500 ms, writes through a temporary file (a crash can't leave half a file), saves pending
-writes on Ctrl+C / SIGTERM, and moves an unreadable `db.json` to `db.json.corrupt-<time>` instead
-of overwriting it.
+**🔒 Security Systems**
+Anti-bot protection, invite-link filtering, webhook abuse detection, and a dynamic blacklist system. Real-time threat detection with per-guild configuration.
 
-### Environment variables
+**📊 Leveling & Economy**
+Chat and voice XP with visual rank announcements, a currency system with daily/work rewards, and a profile customization shop with background cards.
 
-| Variable | Meaning |
-| --- | --- |
-| `DISCORD_TOKEN` | Bot token (required). |
-| `OWNER_ID` | User allowed to run owner-only commands (overrides `config.json`). |
-| `PREFIX` | Prefix for message commands (overrides `config.json`, default `&`). |
-| `MONGODB_URI` | Use MongoDB instead of `data/db.json`. |
-| `MONGODB_DB` | MongoDB database name (default: the `slug` from `config.json`). |
+**🔍 Advanced Checker Tools**
+Real-time member analysis: roles, dangerous permissions, mutual servers, voice activity, and presence data. Image-based card rendering (`topma`, `checkvoice`, `fullcheck`, `checkroles`, `activity`).
 
-### Gateway intents
+**👥 Clans System**
+Member-run clans with hierarchical roles (leaders, co-leaders), invite management, warning system, and dedicated voice channels.
 
-| Intent | Used by |
-| --- | --- |
-| `Guilds` | Everything (guild, channel and role caches). |
-| `GuildMessages` + `MessageContent` | Prefix commands and the @mention reply. |
-| `GuildVoiceStates` | Voice-only commands check that the user sits in a voice channel. |
-| `DirectMessages` (+ `Partials.Channel`) | Prefix commands in DMs. No prefix command has `dm: true` today, so this intent is unused until one does. |
+**✅ Verification & Jail**
+Fully configurable verification flows, jail/mute system with detailed logs, and role-based access control.
 
-The client keeps at most 50 messages per channel in cache and sweeps cached messages older than
-30 minutes every hour: nothing in the bot reads old messages.
+**⭐ Premium Features**
+Per-server bot customization (nickname, avatar, banner, bio), temporary voice channel management, and user-level premium unlocks managed by bot owner.
 
-## How a command answers
+**🔄 Auto-replies, Self-roles & Applications**
+Configurable trigger-based auto-replies, button-driven self-role panels, and a review system for user applications.
 
-Every command goes through `src/core/pipeline.ts`, in this order:
+**🎮 Games & Entertainment**
+Trivia, word games, dice, coin flips, and more. Unified card styling across all game interfaces.
 
-1. **Where:** commands that didn't work in the original bot's DM (or make no sense there, like
-   rank or ban) are ignored in DMs.
-2. **Who:** owner-only commands (`OWNER_ID` in `.env`) and member permissions the original asked
-   for. Someone without them gets the original's own refusal message.
-3. **Voice:** commands that needed a voice channel answer only users sitting in one.
-4. **Cooldown:** per user, as long as the original's ("try again in 23h").
-5. **The answer:** your own `execute` if you add one to the command file, else a **real
-   implementation** (`logic`: a handler from `src/features/*/<feature>.logic.ts` such as ping,
-   avatar, userinfo, ban, kick, purge, economy, levels...), else **AI-written** logic
-   (`src/features/ai/scripts/<name>.ts`, review before relying on it), else the **recorded
-   answer** of the original bot (text, embeds, buttons, menus, files, reactions).
+**⚙️ Owner Tools**
+Remote user blacklist management, currency/XP grants, profile background administration, and centralized bot control.
 
-A handler returns `'completed'` or `'skipped'`; `'skipped'` means "wrong usage, nothing happened"
-and starts no cooldown. A custom `execute` may return `'skipped'` for the same effect.
+**Command Types:**
+- **Prefix commands:** `&command` (configurable prefix in `config.json`)
+- **Slash commands:** `/command` (auto-registered globally on startup)
+- **User-installed apps:** Available for DM-compatible commands
 
-Commands with several recorded answers (coinflip, 8ball, jokes...) pick one at random. Buttons
-and menus keep working after a restart.
+## Quick Start
 
-Each prefix command is one file: `src/commands/prefix/<category>/<name>.ts`; slash commands:
-`src/commands/slash/<name>.ts` (a `__` in the file name stands for the space in `/group sub`).
-Their recordings are in `data/recordings/` (`recordingFile` in the command file). Change `logic`
-in a command file to switch between the real implementation (`"ban"`, `"purge"`...) and the
-recording (`null`), or add an `execute` to write your own. A misspelled `logic` name is a compile
-error and the bot refuses to start with it.
+### Prerequisites
+- **Node.js** 18.18+ (v20+ recommended)
+- **MongoDB** Atlas or self-hosted instance
+- **Discord Developer Portal** bot token with Message Content Intent enabled
 
-### What `kind` means in a command file
+### Installation
 
-| `kind` | Meaning |
-| --- | --- |
-| `ok` | The original answered; the recorded answer is replayed. |
-| `usage` | The original answered with a usage/help text when run without arguments. |
-| `permission` | The probing account wasn't allowed to run it, so only a refusal was recorded. Whoever passes the permission check gets the "not recorded" message instead of that refusal. |
-| `silent` | The original never answered: an empty stub until you add code. |
-| `skipped` | Slash command that was never run while recording: an empty stub. |
+```bash
+# 1. Clone and install
+git clone <repository-url>
+cd next-ts
+npm install
 
-## Details of the recording
+# 2. Configure environment
+cp .env.example .env
+# Edit .env with your tokens and MongoDB URI
 
-- Every command was run bare (no arguments). When its usage showed required arguments and the
-  command is safe to run with them, it was also run once with sample values (numbers = 1, a user =
-  the account owner who ran this probe, never a stranger); the replica answers with that sample
-  whenever a user passes arguments. Commands that act on people or the server (ban, kick, pay,
-  set...) were never run with arguments.
-- Buttons and menus were explored click by click, including buy/sell/delete/confirm-style ones. A
-  game therefore replays the screens seen while playing. A button that popped up a form (modal) has
-  its shape recorded and the replica shows the same form.
-- The probing account's own name, mention and avatar were replaced by placeholders
-  (`{{mention}}`, `{{username}}`, `{{displayName}}`, `{{userId}}`, `{{avatar}}`, `{{guild}}`) so
-  each user sees their own; `custom_id` values are never changed. No recorded message had an
-  attachment, so there is no `assets/` folder.
-- Buttons and menus only work where a click was recorded; every other button is shown disabled.
-- Some recorded images no longer exist (HTTP 404 when checked on 2026-10-16): the GIFs in
-  `smile`, `love`, `kiss` (2), `slape`, `missyou` and `kill`, and the avatar in `ping`'s recording
-  (unused: `ping` has a real implementation). Discord shows a broken image for them. Replace the URL
-  in the recording with an image you host yourself (or a file you add as an attachment) rather than
-  another link that can expire.
-- The bot was also @mentioned with nothing else, to see if it replies to being tagged alone
-  (`data/recordings/mention.json`).
-- Commands that never answered (owner-only, permission-gated) or weren't reached before the time
-  limit are empty stubs: they stay silent until you add logic (or have a real implementation).
-- Silent when run (empty stubs): `&clear`, `&24`, `&addcategorie`, `&addqeustion`, `&cancelapply`, `&cmdtimeout`, `&jail-setup`, `&removebutton`, `&removecategorie`, `&removequestion`, `&resetapplies`, `&selfolressections`, `&selfrolebuttons`, `&selfroleslogs`, `&sendapplypanel`, `&sendsection`, `&setapply`, `&setapplylogs`, `&setapplymanagers`, `&tempchannel`, `&updatesection`, `&verif-setup`, `&warn-setup`, `&1490716829373567116`, `&1490717627784364065`, `&1505004562556260524`, `&1505736582316167188`, `&1497237138998169680`, `&1490716829373567112`, `&1504189206761832689`, `&1490716829373567115`, `&1490716829373567114`, `&1507111675638190260`, `&1506017602760081528`, `&1505287656345702651`, `&1505685566631575552`, `&1491143875392176268`, `&1506021172654116986`, `&1490716829344075780`, `&1490716829373567110`, `&1490716829361111151`, `&1491548475005862040`, `&1513525119413391461`
-- ⚠️ 9 buy/sell/delete/confirm/pay/reset-style button press(es) really happened in the original bot while recording: `anagram`, `fasttype`, `guessnumber`, `quickmath`, `riddle`, `sequence`, `sumup`, `trivia`, `wordscramble`. Whatever that did there (spent currency, deleted something, confirmed an action...) is real and wasn't undone.
-- 5 of the original bot's 5 custom emoji were re-created on the bot whose token you gave the panel. **Run this replica with that same bot's token** so they show.
+# 3. Start the bot
+npm start
 
-## Project layout
+# Production build
+npm run build
+npm run start:prod
+
+# Verify everything
+npm run check  # typecheck, lint, build, tests
+```
+
+### Configuration
+
+**Required environment variables:**
+- `DISCORD_TOKEN` — Your bot token from the Developer Portal
+- `MONGODB_URI` — MongoDB connection string (Atlas or self-hosted)
+
+**Discord setup:**
+1. Go to **Developer Portal** → **Bot** tab
+2. Enable **Message Content Intent** (required for prefix commands)
+3. Copy the token to `.env` as `DISCORD_TOKEN`
+4. Invite the bot with scopes: `bot` and `applications.commands`
+5. Set `OWNER_ID` in `.env` to your user ID for owner-only commands
+
+All runtime data persists exclusively in MongoDB. Database name defaults to the `slug` from `config.json` or the `MONGODB_DB` environment variable.
+
+### All Environment Variables
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `DISCORD_TOKEN` | ✅ | Bot token from Developer Portal |
+| `MONGODB_URI` | ✅ | MongoDB connection string |
+| `OWNER_ID` | — | User ID for owner-only commands |
+| `PREFIX` | — | Command prefix (default: `&`) |
+| `MONGODB_DB` | — | Database name (defaults to `slug` from config.json) |
+| `SELFBOT_TOKEN` | — | Second account for voice/presence data in unreachable servers |
+| `SUPPORT_SERVER_URL` | — | Support server link in help menu |
+| `WEBHOOK_URL` | — | Webhook for hosting generated images |
+| `API_PORT` | — | REST API port (requires `API_KEY` to enable) |
+| `API_KEY` | — | REST API authentication key |
+| `EMOJIS_SERVER_ID` | — | Guild ID for custom emoji storage |
+
+### Discord Intents
+
+| Intent | Purpose |
+|--------|---------|
+| `Guilds` | Guild, channel, and role caching |
+| `GuildMessages` + `MessageContent` | Prefix command parsing and @mention replies |
+| `GuildVoiceStates` | Voice commands, temp channels, voice XP tracking |
+| `DirectMessages` | DM-compatible commands |
+
+## Architecture
+
+### Command Pipeline
+
+Every command flows through a consistent validation pipeline (`src/core/pipeline.ts`):
+
+```
+Input (Message / Interaction)
+    ↓
+1. Scope Check — DM-only or server-only validation
+    ↓
+2. Permission Check — owner-only, required permissions
+    ↓
+3. Voice Check — voice channel requirement (if applicable)
+    ↓
+4. Cooldown Check — per-user, per-command rate limiting
+    ↓
+5. Handler — feature logic executes and replies
+    ↓
+Output ('completed' or 'skipped')
+```
+
+### Command Structure
+
+- **Prefix commands:** `src/commands/prefix/<category>/<name>.ts` — Command metadata and routing
+- **Slash commands:** `src/commands/slash/<name>.ts` — Slash-specific schema and options
+- **Feature handlers:** `src/features/<feature>/<feature>.logic.ts` — Actual business logic
+- **Services:** `src/features/<feature>/<feature>.service.ts` — Reusable operations (shared by commands, buttons, APIs)
+- **Models:** `src/features/<feature>/<feature>.model.ts` — Database access layer with validation
+- **UI:** `src/features/<feature>/<feature>.ui.ts` — Embeds, components, modals (pure rendering, no I/O)
+
+## API Architecture
+
+The bot includes an **optional built-in REST API** (`src/api/`, enabled when `API_KEY` is set). The API and Discord bot **share the same Node.js process**, client instance, and MongoDB connection — no round-trips, no duplicate state:
+
+```
+          Discord                                    HTTP
+   &topma / &checkvoice / ...                GET /api/v1/checker/...
+            │                                           │
+            ▼                                           ▼
+   checker.logic.ts                          checker.controller.ts
+  (src/features/checker)                       (src/api/controllers)
+            │                                           │
+            └───────────────────┬───────────────────────┘
+                                 ▼
+                     features/checker/*.ts
+          (voiceActivity.ts, mutualGuilds.ts, adminAudit.ts, ...)
+                                 │
+                 ┌───────────────┴───────────────┐
+                 ▼                               ▼
+        discord.js caches                     MongoDB
+    (guilds, voice states,              (guildSecurity, premium,
+     presences — live, same               prefixes, ...)
+         BotClient)
+                 │                               │
+                 └───────────────┬───────────────┘
+                                 ▼
+                     same data, two replies:
+        a Discord message/component            a JSON response
+            (`ctx.send(...)`)                  (`res.json(ok(...))`)
+```
+
+In short: the API doesn't call the bot, and the bot doesn't call the API — they're the same
+program. A `checker` endpoint only *reads* whatever the bot already has in memory (plus
+MongoDB); it never performs a Discord action. An endpoint that changes something (e.g. under
+`/moderation`) still just calls the same `BotClient` directly, in-process, exactly like a
+command would.
+
+## Project Structure
 
 ```
 src/
-  index.ts                 entry point: builds the client, loads everything, logs in
-  core/                    shared plumbing, no feature logic
-    types.ts               PrefixCommand, SlashCommand, BotEvent, InteractionRoute, CommandOutcome
-    client.ts              BotClient (commands, aliases, slashCommands, routes), intents, cache limits
-    loader.ts              the one loader: commands, events, feature routes (validated, duplicates throw)
-    command-schema.ts      runtime validation of command files
-    router.ts              sends every interaction to exactly one route; acks unrouted clicks/forms
-    pipeline.ts            DM / owner / permission / voice / cooldown checks, then the answer
-    context.ts             Ctx: one object for message, slash and button invocations
-    slash.ts               slash/context-menu registration payload (typed Discord API JSON)
-    config.ts json.ts permissions.ts format.ts replies.ts db.ts state.ts modules.ts
-  commands/prefix/other/   one file per prefix command (data only)
-  commands/slash/          one file per slash command (data only)
-  events/                  one file per Discord event (defineEvent)
-  features/
-    logic.ts               the list of built-in logic groups (LogicName comes from here)
-    <feature>/             info, fun, moderation, economy, levels, voice, recordings, ai
-      <feature>.logic.ts     command handlers (parse input, call the service, send the UI)
-      <feature>.service.ts   the actual work: checks and Discord actions
-      <feature>.model.ts     database reads/writes with typed, validated documents
-      <feature>.ui.ts        embeds/components/modals, no Discord calls and no database
-      index.ts               optional: `export const routes = [defineRoute(...)]`
-test/                      node:test suites, run with `npm test`
-data/recordings/           what the original bot answered (data, never edited by code)
+  ├── index.ts                    Entry point: client initialization, startup
+  ├── core/                       Shared infrastructure, no feature logic
+  │   ├── types.ts               Type definitions (PrefixCommand, SlashCommand, etc.)
+  │   ├── client.ts              BotClient with command/event/route loaders
+  │   ├── loader.ts              Auto-discovery of commands, events, routes
+  │   ├── pipeline.ts            Command execution pipeline
+  │   ├── router.ts              Interaction routing for buttons/menus/forms
+  │   ├── context.ts             Unified Ctx object for all command types
+  │   └── [config, db, state, permissions, etc.]
+  ├── commands/
+  │   ├── prefix/<category>/<name>.ts    Prefix command definitions
+  │   └── slash/<name>.ts                Slash command definitions
+  ├── events/                     Discord event handlers (defineEvent)
+  ├── features/                   Feature modules
+  │   ├── <feature>/
+  │   │   ├── <feature>.logic.ts         Command handlers
+  │   │   ├── <feature>.service.ts       Reusable business logic
+  │   │   ├── <feature>.model.ts         Database operations
+  │   │   ├── <feature>.ui.ts            UI rendering (pure functions)
+  │   │   └── index.ts                   Route definitions (optional)
+  │   └── [moderation, economy, clans, checker, premium, ...]
+  ├── api/                        REST API (optional, requires API_KEY)
+  │   ├── controllers/            Endpoint handlers
+  │   └── routes.ts               API route definitions
+  └── test/                       Test suites (npm test)
+
+## Advanced Command Types
+
+**Slash Commands:** Auto-registered globally on startup (Discord may take up to 15 minutes to propagate). Full type-safety with TypeScript schema validation.
+
+**User-Installed Apps:** DM-compatible commands can be registered as user-installable apps. Members add the bot to their personal account via the Developer Portal (Installation → User Install toggle).
+
+**Interaction Routes:** Button clicks, select menus, and modal submissions are routed via `src/core/router.ts` with automatic acknowledgment of unhandled interactions.
+
+---
+
+## Performance & Caching
+
+- **Message Cache:** Small, bounded cache with hourly sweep — no historical message lookups
+- **Guild/Role/User Caches:** Automatic discord.js caching with configurable limits
+- **In-Process State:** Discord.js client and MongoDB connection are shared between bot and API
+- **MongoDB Connection Pooling:** Automatic pooling for efficient multi-request handling
+- **Image Generation:** Asynchronous card rendering for checker commands
+
+---
+
+## Development
+
+### Project Quality Standards
+
+- **Type Safety:** No `any`, `@ts-ignore`, or unchecked casts
+- **Code Size:** Feature files capped at 400 lines (enforced by tests)
+- **Testing:** Run `npm run check` before every commit (typecheck, lint, build, tests)
+- **Error Handling:** Validated input at system boundaries; trust framework guarantees internally
+- **Names Over Comments:** Code is self-documenting; comments explain the *why*, not the *what*
+
+### Adding New Features
+
+| Task | Location | Registration |
+|------|----------|--------------|
+| Prefix command | `src/commands/prefix/<category>/<name>.ts` | Automatic via loader |
+| Slash command | `src/commands/slash/<name>.ts` | Automatic on startup |
+| Event handler | `src/events/<name>.ts` (use `defineEvent`) | Automatic |
+| Button/Menu handler | `src/features/<feature>/index.ts` (use `defineRoute`) | Automatic |
+| Command logic | `src/features/<feature>/<feature>.logic.ts` | Import in feature file |
+| Reusable logic | `src/features/<feature>/<feature>.service.ts` | Import where needed |
+
+All new additions are automatically discovered by `src/core/loader.ts` with validation and duplicate detection.
+
+---
+
+## Deployment
+
+### Local Development
+```bash
+npm install
+cp .env.example .env
+# Fill in .env
+npm start
 ```
 
-### Where a new thing goes
+### Production
+```bash
+npm run build
+npm run start:prod
+```
 
-| Adding | Put it in | Registration |
-| --- | --- | --- |
-| Prefix command | `src/commands/prefix/<category>/<name>.ts` (a `Command` object) | automatic |
-| Slash command | `src/commands/slash/<name>.ts` (`path: "group sub"`) | automatic; registered on startup |
-| Event handler | `src/events/<name>.ts` with `export default defineEvent({ name: Events.X, ... })` | automatic |
-| Button, menu or form handler | `src/features/<feature>/index.ts`: `export const routes = [defineRoute({ name, match, handle })]` | automatic |
-| Real implementation of a command | a handler in `src/features/<feature>/<feature>.logic.ts`, then `logic: "<name>"` in the command file | a new feature group needs one line in `src/features/logic.ts` |
-| Shared logic (e.g. a moderation action) | `src/features/<feature>/<feature>.service.ts` | import it |
-| Shared types | `src/core/types.ts` | import them |
+For serverless or containerized deployments, the bot works with:
+- Docker (build `dist/` and run as a Node.js app)
+- PM2 (run `start:prod` script)
+- Systemd (point to the compiled `dist/index.js`)
 
-### Rules that keep features from breaking each other
+---
 
-- One implementation per action: prefix commands, slash commands and buttons call the same service
-  function (ban, kick and timeout all go through `moderation.service.ts`, which also checks that
-  the moderator's highest role is above the target's).
-- Shared types only: commands are `Command`, events `defineEvent`, routes `defineRoute`. Data from
-  JSON, the database or Discord is `unknown` until validated.
-- Every customId belongs to exactly one route; give a feature's ids a unique prefix
-  (`<feature>:...`). Never rename a customId that is already posted in a server. A test fails if
-  two routes match the same id.
-- Explicit named exports, no `export *` and no spreading handler objects together: a clash must be
-  a compile error or a startup error, never a silent overwrite.
-- Tables and builder functions instead of pasted JSON in code; recorded JSON stays in `data/`.
-- Heavy libraries are loaded with `await import()` on first use (MongoDB already is), with
-  `import type` for their types.
-- No `any`, no `@ts-ignore`/`@ts-expect-error`, no non-null `!`.
-- No comments in code: names, constants and types carry the meaning, explanations go here. A test
-  fails on any comment except a shebang, `/// <reference>` or an unavoidable `eslint-disable`.
-- Feature files stay under 400 lines (a test checks `src/features/` and `src/handlers/`).
-- Run `npm run check` before every commit.
+## Support & Contribution
 
-## Commands
+For bugs, feature requests, or questions, please open an issue on the repository.
 
-| Command | How it answers | Notes | Description |
-| --- | --- | --- | --- |
-| `&help` | recorded |  |  |
-| `&avatar` | real (`avatar`) |  |  |
-| `&avatarserver` | recorded |  |  |
-| `&banner` | recorded |  |  |
-| `&botinfo` | recorded |  |  |
-| `&channel-info` | recorded |  |  |
-| `&check-vanity` | recorded |  |  |
-| `&emojiinfo` | recorded |  |  |
-| `&firstmsg` | recorded |  |  |
-| `&getinvite` | recorded |  |  |
-| `&invimage` | recorded |  |  |
-| `&inviteinfo` | recorded |  |  |
-| `&membercount` | real (`membercount`) |  |  |
-| `&ping` | real (`ping`) |  |  |
-| `&roleinfo` | recorded |  |  |
-| `&roles` | recorded |  |  |
-| `&serverinfo` | real (`serverinfo`) |  |  |
-| `&tag` | recorded |  |  |
-| `&userinfo` | real (`userinfo`) |  |  |
-| `&checkroles` (`&cr`) | real (`checkroles`) |  | Check a member's roles and flag dangerous permissions. |
-| `&fullcheck` (`&fc`) | real (`fullcheck`) |  | Full profile check: account age, join date, roles and dangerous permissions. |
-| `&checkvoice` (`&cv`) | real (`checkvoice`) |  | Check which voice channel a member is in and who else is there. |
-| `&topmembers` (`&topma`) | real (`topmembers`) |  | Leaderboard of the top members in this server by level/XP. |
-| `&vc` | recorded |  |  |
-| `&sus` | recorded |  |  |
-| `&topverif` | recorded |  |  |
-| `&vb` | recorded |  |  |
-| `&veriflogs` | recorded |  |  |
-| `&verifpanel` | recorded |  |  |
-| `&verify` | recorded |  |  |
-| `&vg` | recorded |  |  |
-| `&clearwarns` | recorded |  |  |
-| `&unwarn` | recorded |  |  |
-| `&warn` | real (`warn`) | moderate_members |  |
-| `&warnings` | real (`warnings`) | moderate_members |  |
-| `&warnlogs` | recorded |  |  |
-| `&add` | recorded |  |  |
-| `&addemoji` | recorded |  |  |
-| `&addgame` | recorded |  |  |
-| `&alias` | recorded |  |  |
-| `&blacklistedchannel` | recorded |  |  |
-| `&boosters` | recorded |  |  |
-| `&clear` | real (`purge`) | manage_messages |  |
-| `&cleardata` | recorded | manage_guild |  |
-| `&config` | recorded |  |  |
-| `&deny` | recorded |  |  |
-| `&disabledcmd` | recorded |  |  |
-| `&embed` | recorded |  |  |
-| `&hide` | recorded |  |  |
-| `&hsetup` | recorded |  |  |
-| `&list` | recorded |  |  |
-| `&listgames` | recorded |  |  |
-| `&lock` | real (`lock`) | manage_channels |  |
-| `&perminall` | recorded |  |  |
-| `&poll` | recorded |  |  |
-| `&pushdatabase` | recorded |  |  |
-| `&removegame` | recorded |  |  |
-| `&setmoverole` | recorded |  |  |
-| `&setmuted` | recorded |  |  |
-| `&setmutelogs` | recorded |  |  |
-| `&setmuterole` | recorded |  |  |
-| `&setroleslogs` | recorded |  |  |
-| `&show` | recorded |  |  |
-| `&setup` | recorded |  |  |
-| `&timelock` | recorded |  |  |
-| `&unlock` | real (`unlock`) | manage_channels |  |
-| `&unperminall` | recorded |  |  |
-| `&voicecount` | recorded |  |  |
-| `&24` | empty stub |  |  |
-| `&addbot` | recorded | manage_guild |  |
-| `&announecement` | recorded | manage_guild |  |
-| `&killbot` | recorded | manage_guild |  |
-| `&listbots` | recorded | manage_guild |  |
-| `&removebot` | recorded | manage_guild |  |
-| `&usebot` | recorded | manage_guild |  |
-| `&8ball` | real (`8ball`) |  |  |
-| `&afk` | recorded |  |  |
-| `&anagram` | recorded |  |  |
-| `&cat` | recorded |  |  |
-| `&coinflip` | real (`coinflip`) |  |  |
-| `&cringe` | recorded |  |  |
-| `&cry` | recorded |  |  |
-| `&cuddle` | recorded |  |  |
-| `&cups` | recorded |  |  |
-| `&dance` | recorded |  |  |
-| `&dicebattle` | recorded |  |  |
-| `&emojiquiz` | recorded |  |  |
-| `&fasttype` | recorded |  |  |
-| `&gendre` | recorded |  |  |
-| `&guessnumber` | recorded |  |  |
-| `&hack` | recorded |  |  |
-| `&happy` | recorded |  |  |
-| `&higherlower` | recorded |  |  |
-| `&howgay` | recorded |  |  |
-| `&hug` | recorded |  |  |
-| `&kill` | recorded |  |  |
-| `&kiss` | recorded |  |  |
-| `&love` | recorded |  |  |
-| `&luckybutton` | recorded |  |  |
-| `&minesafe` | recorded |  |  |
-| `&missyou` | recorded |  |  |
-| `&oddoneout` | recorded |  |  |
-| `&quickmath` | recorded |  |  |
-| `&riddle` | recorded |  |  |
-| `&roll` | real (`roll`) |  |  |
-| `&rps` | recorded |  |  |
-| `&rpsls` | recorded |  |  |
-| `&safebox` | recorded |  |  |
-| `&sequence` | recorded |  |  |
-| `&slape` | recorded |  |  |
-| `&slotrush` | recorded |  |  |
-| `&smile` | recorded |  |  |
-| `&sumup` | recorded |  |  |
-| `&targettap` | recorded |  |  |
-| `&tictactoe` | recorded |  |  |
-| `&trapdoor` | recorded |  |  |
-| `&treasuremap` | recorded |  |  |
-| `&trivia` | recorded |  |  |
-| `&wordscramble` | recorded |  |  |
-| `&jail` | recorded |  |  |
-| `&jailinfo` | recorded |  |  |
-| `&jaillogs` | recorded |  |  |
-| `&unjail` | recorded |  |  |
-| `&activity` | recorded |  |  |
-| `&audituser` | recorded |  |  |
-| `&ban` | real (`ban`) | ban_members |  |
-| `&banlogs` | recorded |  |  |
-| `&cam` | recorded |  |  |
-| `&find` | recorded |  |  |
-| `&fmove` | recorded |  |  |
-| `&kick` | real (`kick`) | kick_members |  |
-| `&kicklogs` | recorded |  |  |
-| `&move` | recorded |  |  |
-| `&moveall` | recorded |  |  |
-| `&mute` | real (`timeout`) | moderate_members |  |
-| `&nick` | recorded |  |  |
-| `&role` | recorded |  |  |
-| `&sb` | recorded |  |  |
-| `&slowmode` | real (`slowmode`) | manage_channels |  |
-| `&softban` | recorded |  |  |
-| `&timeout` | real (`timeout`) | moderate_members |  |
-| `&timeoutlogs` | recorded |  |  |
-| `&unban` | real (`unban`) | ban_members |  |
-| `&unmute` | real (`untimeout`) | moderate_members |  |
-| `&vclist` | recorded |  |  |
-| `&vdeafen` | recorded |  |  |
-| `&vkick` | recorded |  |  |
-| `&vmute` | recorded |  |  |
-| `&voiceclean` | recorded |  |  |
-| `&voicelogs` | recorded |  |  |
-| `&vundeafen` | recorded |  |  |
-| `&vunmute` | recorded |  |  |
-| `&autoplay` | recorded | voice |  |
-| `&backward` | recorded | voice |  |
-| `&clearqueue` | recorded | voice |  |
-| `&filter` | recorded | voice |  |
-| `&forward` | recorded | voice |  |
-| `&loop` | recorded | voice |  |
-| `&lyrics` | recorded |  |  |
-| `&movi` | recorded | voice |  |
-| `&nowplaying` | recorded |  |  |
-| `&npsource` | recorded |  |  |
-| `&pause` | recorded | voice |  |
-| `&play` | recorded | voice |  |
-| `&preferences` | recorded |  |  |
-| `&queue` | recorded |  |  |
-| `&remove` | recorded | voice |  |
-| `&resetprefs` | recorded |  |  |
-| `&resume` | recorded | voice |  |
-| `&seek` | recorded | voice |  |
-| `&shuffle` | recorded | voice |  |
-| `&skip` | recorded | voice |  |
-| `&stop` | recorded | voice |  |
-| `&volume` | recorded | voice |  |
-| `&autoreply-remove` | recorded |  |  |
-| `&autoreply` | recorded |  |  |
-| `&autoreplyrole` | recorded |  |  |
-| `&reply-list` | recorded |  |  |
-| `&reply-reset` | recorded |  |  |
-| `&antibots` | recorded |  |  |
-| `&antilink` | recorded |  |  |
-| `&autorole` | recorded |  |  |
-| `&jointracker` | recorded |  |  |
-| `&remind` | recorded |  |  |
-| `&addcategorie` | empty stub |  |  |
-| `&addqeustion` | empty stub |  |  |
-| `&cancelapply` | empty stub |  |  |
-| `&cmdtimeout` | empty stub |  |  |
-| `&jail-setup` | empty stub |  |  |
-| `&removebutton` | empty stub |  |  |
-| `&removecategorie` | empty stub |  |  |
-| `&removequestion` | empty stub |  |  |
-| `&resetapplies` | empty stub |  |  |
-| `&selfolressections` | empty stub |  |  |
-| `&selfrolebuttons` | empty stub |  |  |
-| `&selfroleslogs` | empty stub |  |  |
-| `&sendapplypanel` | empty stub |  |  |
-| `&sendsection` | empty stub |  |  |
-| `&setapply` | empty stub |  |  |
-| `&setapplylogs` | empty stub |  |  |
-| `&setapplymanagers` | empty stub |  |  |
-| `&tempchannel` | empty stub |  |  |
-| `&updatesection` | empty stub |  |  |
-| `&verif-setup` | empty stub |  |  |
-| `&warn-setup` | empty stub |  |  |
-| `&1490716829373567116` | empty stub |  |  |
-| `&1490717627784364065` | empty stub |  |  |
-| `&1505004562556260524` | empty stub |  |  |
-| `&1505736582316167188` | empty stub |  |  |
-| `&1497237138998169680` | empty stub |  |  |
-| `&1490716829373567112` | empty stub |  |  |
-| `&1504189206761832689` | empty stub |  |  |
-| `&1490716829373567115` | empty stub |  |  |
-| `&1490716829373567114` | empty stub |  |  |
-| `&1507111675638190260` | empty stub |  |  |
-| `&1506017602760081528` | empty stub |  |  |
-| `&1505287656345702651` | empty stub |  |  |
-| `&1505685566631575552` | empty stub |  |  |
-| `&1491143875392176268` | empty stub |  |  |
-| `&1506021172654116986` | empty stub |  |  |
-| `&1490716829344075780` | empty stub |  |  |
-| `&1490716829373567110` | empty stub |  |  |
-| `&1490716829361111151` | empty stub |  |  |
-| `&1491548475005862040` | empty stub |  |  |
-| `&1513525119413391461` | empty stub |  |  |
+The codebase is designed to be maintainable and extensible. See the Development section above for guidelines on adding new features or fixing existing ones.
 
-## Slash, context-menu and external-app commands
+---
 
-Registered globally when the bot starts (Discord can take a few minutes to show them). Commands
-that worked in the original bot's DM are also registered as a **user-installed app**: turn on
-*User Install* in the Developer Portal (Installation tab) and anyone can add the bot to their own
-account and use those commands in any DM. The others stay server-only.
+## License
 
-| Command | How it answers | Where | Description |
-| --- | --- | --- | --- |
-| `/addcategorie` | empty stub | servers | Add a new apply category to this server. |
-| `/addqeustion` | empty stub | servers | Add one or more questions to an apply category. |
-| `/cancelapply` | recorded | servers + DMs (external app) | Cancel your currently pending application. |
-| `/cmdtimeout set` | empty stub | servers | Create or update a command usage limit. |
-| `/cmdtimeout remove` | empty stub | servers | Remove a command usage limit. |
-| `/cmdtimeout list` | recorded | servers + DMs (external app) | List every configured command usage limit. |
-| `/cmdtimeout check` | recorded | servers + DMs (external app) | Check current usage for a user on a specific command. |
-| `/cmdtimeout reset` | empty stub | servers | Reset usage counters for a command or an entire scope. |
-| `/jail-setup` | empty stub | servers | Sets up the jail system for this server. |
-| `/removecategorie` | empty stub | servers | Remove an apply category from this server. |
-| `/removequestion` | empty stub | servers | Remove a question from an apply category. |
-| `/sendapplypanel` | recorded | servers + DMs (external app) | Send the apply panel with category buttons into this channel. |
-| `/setapply` | recorded | servers + DMs (external app) | Save the apply panel JSON template for this server. |
-| `/setapplylogs` | empty stub | servers | Set the channel used for application review logs. |
-| `/setapplymanagers` | empty stub | servers | Set one or more roles that can review applications. |
-| `/tempchannel create` | empty stub | servers | Create a temporary voice channel trigger. |
-| `/tempchannel edit` | empty stub | servers | Edit an existing temporary voice channel trigger. |
-| `/tempchannel delete` | empty stub | servers | Delete a temporary voice channel trigger. |
-| `/tempchannel list` | recorded | servers + DMs (external app) | List configured temporary voice channel triggers and active rooms. |
-| `/tempchannel cleanup` | recorded | servers + DMs (external app) | Delete stale empty temporary rooms and orphaned records. |
-| `/verif-setup` | empty stub | servers | Sets up the verification system for this server. |
-| `/warn-setup` | empty stub | servers | Sets up the warn system for this server. |
-| `/removebutton` | empty stub | servers | Remove a self-role button mapping. |
-| `/selfolressections list` | recorded | servers + DMs (external app) | List all self-role sections. |
-| `/selfolressections new` | recorded | servers + DMs (external app) | Create a new self-role section. |
-| `/selfolressections remove` | empty stub | servers | Remove an existing self-role section. |
-| `/selfrolebuttons` | empty stub | servers | Add a button mapping to a self-role section. |
-| `/selfroleslogs` | recorded | servers | Set the log channel for self-role actions. |
-| `/sendsection` | recorded | servers | Send a configured self-role section to a channel. |
-| `/updatesection` | recorded | servers + DMs (external app) | Update an existing self-role section. |
-| `/resetapplies` | recorded | servers + DMs (external app) | Cancel every pending application in this server. |
+This project is proprietary software. All rights reserved.
+
+---
+
+**Built with discord.js 14 and TypeScript. Production-ready for servers of any size.**

@@ -1,20 +1,20 @@
 import config, { fillTemplate } from './config';
+import { getCooldown } from './cooldowns';
 import db from './db';
 import { permissionLabel } from './permissions';
 import { runAiLogic } from '../features/ai/ai.runner';
 import { logicHandler } from '../features/logic';
-import { replayCommand, sendReplies } from '../features/recordings/recordings.service';
+import { replayCommand } from '../features/recordings/recordings.service';
+import { recordCommandUse } from '../features/stats/commandStats.model';
 import type { Ctx } from './context';
-import type { Snapshot } from '../features/recordings/recording.model';
 import { commandLabel, type CommandOutcome, type LoadedCommand } from './types';
+import { errorReply } from './usage-replies';
+import { getBlacklistEntry, isWorkMode } from '../features/owner/owner.model';
+import { isBlacklistedChannel } from '../features/setup/setup.model.blacklist';
+import { getCheckerRoles } from '../features/setup/setup.model.checker';
 
 const COOLDOWNS_COLLECTION = 'cooldowns';
 const MS_PER_SECOND = 1000;
-
-async function notice(ctx: Ctx, recorded: Snapshot[], fallback: string): Promise<void> {
-  if (recorded.length && (await sendReplies(ctx, recorded))) return;
-  await ctx.whisper(fallback);
-}
 
 const cooldownKey = (command: LoadedCommand, userId: string): string => `${command.recordingFile || commandLabel(command)}:${userId}`;
 
@@ -42,38 +42,61 @@ function isInVoice(ctx: Ctx): boolean {
 
 export async function run(ctx: Ctx, command: LoadedCommand): Promise<void> {
   try {
-    const { recording } = command;
+    if (ctx.user.id !== config.ownerId) {
+      if (await isWorkMode()) {
+        if (ctx.isInteraction) await ctx.send(errorReply(ctx, 'The bot is currently in owner work mode.'));
+        return;
+      }
+      const blocked = await getBlacklistEntry(ctx.user.id);
+      if (blocked) {
+        await ctx.send(errorReply(ctx, `You cannot use the bot's commands.\n- Reason: ${blocked.reason}`));
+        return;
+      }
+    }
     if (ctx.inDM && !command.dm) {
-      if (ctx.isInteraction) await ctx.whisper(config.messages.serverOnly);
+      if (ctx.isInteraction) await ctx.send(errorReply(ctx, config.messages.serverOnly));
+      return;
+    }
+    if (ctx.guild && ctx.channel && ctx.user.id !== config.ownerId && await isBlacklistedChannel(ctx.guild.id, ctx.channel.id)) {
+      if (ctx.isInteraction) await ctx.send(errorReply(ctx, 'Bot commands are disabled in this channel.'));
       return;
     }
     if (command.ownerOnly && ctx.user.id !== config.ownerId) {
-      await notice(ctx, recording.permissionNotice, config.messages.ownerOnly);
+      await ctx.send(errorReply(ctx, config.messages.ownerOnly));
       return;
     }
     const missing = command.permissions.filter((permission) => !ctx.hasPermission(permission));
     if (missing.length) {
       const permission = missing.map(permissionLabel).join(', ');
-      await notice(ctx, recording.permissionNotice, fillTemplate(config.messages.missingPermission, { permission }));
+      await ctx.send(errorReply(ctx, fillTemplate(config.messages.missingPermission, { permission })));
       return;
+    }
+    if ('category' in command && command.category === 'Checker' && ctx.guild && ctx.user.id !== config.ownerId && !ctx.hasPermission('administrator')) {
+      const checkerRoleIds = await getCheckerRoles(ctx.guild.id);
+      if (checkerRoleIds.length && !checkerRoleIds.some((id) => ctx.member?.roles.cache.has(id) ?? false)) {
+        await ctx.send(errorReply(ctx, "You don't have permission to use checker commands."));
+        return;
+      }
     }
     if (command.voice && !isInVoice(ctx)) {
-      await notice(ctx, recording.voiceNotice, config.messages.joinVoice);
+      await ctx.send(errorReply(ctx, config.messages.joinVoice));
       return;
     }
-    if (command.cooldown) {
+    const cooldown = getCooldown(commandLabel(command), command.cooldown);
+    if (cooldown) {
       const until = await cooldownEndsAt(command, ctx.user.id);
       if (until > Date.now()) {
-        await ctx.whisper(fillTemplate(config.messages.cooldown, { time: `<t:${Math.ceil(until / MS_PER_SECOND)}:R>` }));
+        await ctx.send(errorReply(ctx, fillTemplate(config.messages.cooldown, { time: `<t:${Math.ceil(until / MS_PER_SECOND)}:R>` })));
         return;
       }
     }
     const outcome = await perform(ctx, command);
-    if (command.cooldown && outcome !== 'skipped') {
-      await db.set(COOLDOWNS_COLLECTION, cooldownKey(command, ctx.user.id), Date.now() + command.cooldown * MS_PER_SECOND);
+    if (outcome !== 'skipped') {
+      if (cooldown) await db.set(COOLDOWNS_COLLECTION, cooldownKey(command, ctx.user.id), Date.now() + cooldown * MS_PER_SECOND);
+      await recordCommandUse(ctx.user.id);
     }
   } catch (error) {
     console.error(`Command "${commandLabel(command)}" failed:`, error);
-    await ctx.whisper(config.messages.error).catch(() => undefined);
+    await ctx.send(errorReply(ctx, config.messages.error)).catch(() => undefined);
   }
 }

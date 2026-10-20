@@ -1,4 +1,5 @@
-import type { Guild, GuildMember, GuildTextBasedChannel, TextBasedChannel, User } from 'discord.js';
+import { AuditLogEvent, type Guild, type GuildMember, type GuildTextBasedChannel, type TextBasedChannel, type User } from 'discord.js';
+import { getWarnSetup } from '../setup/setup.model';
 import { addWarning, type Warning } from './warnings.model';
 
 export const DISCORD_MAX_TIMEOUT_MS = 28 * 24 * 60 * 60 * 1000;
@@ -105,4 +106,64 @@ export async function setChannelLocked(channel: TextBasedChannel | null, guild: 
 
 export async function warnUser(guild: Guild, target: User, moderator: User, reason: string): Promise<Warning[]> {
   return addWarning(guild.id, target.id, { reason, by: moderator.id, at: Date.now() });
+}
+
+export async function syncWarnRole(guild: Guild, member: GuildMember, warningCount: number): Promise<void> {
+  const setup = await getWarnSetup(guild.id);
+  const tiers = [setup.firstWarnRoleId, setup.secondWarnRoleId, setup.lastWarnRoleId];
+  const targetRoleId = warningCount > 0 ? tiers[Math.min(warningCount, tiers.length) - 1] ?? null : null;
+  for (const roleId of tiers) {
+    if (!roleId || roleId === targetRoleId || !member.roles.cache.has(roleId)) continue;
+    await member.roles.remove(roleId).catch(() => undefined);
+  }
+  if (targetRoleId && !member.roles.cache.has(targetRoleId)) await member.roles.add(targetRoleId).catch(() => undefined);
+}
+
+export async function softbanUser(guild: Guild, moderator: GuildMember, target: User, deleteDays: number, reason: string): Promise<Refusal | null> {
+  const member = await guild.members.fetch(target.id).catch(() => null);
+  const refusal = hierarchyRefusal(guild, moderator, target.id, member);
+  if (refusal) return refusal;
+  if (member && !member.bannable) return REFUSALS.cannotBan;
+  const deleteMessageSeconds = Math.min(Math.max(deleteDays, 0), 7) * 86400;
+  const bannedReason = auditReason(moderator, reason);
+  await guild.members.ban(target.id, { reason: bannedReason, deleteMessageSeconds });
+  await guild.members.unban(target.id, bannedReason).catch(() => undefined);
+  return null;
+}
+
+export interface AuditLogRecord {
+  at: number;
+  executorId: string | null;
+  reason: string;
+}
+
+async function fetchAuditEntries(guild: Guild, type: AuditLogEvent, targetId: string): Promise<AuditLogRecord[]> {
+  const logs = await guild.fetchAuditLogs({ type, limit: 50 }).catch(() => null);
+  if (!logs) return [];
+  return [...logs.entries.values()]
+    .filter((entry) => entry.targetId === targetId)
+    .map((entry) => ({ at: entry.createdTimestamp, executorId: entry.executorId, reason: entry.reason || NO_REASON }));
+}
+
+export async function fetchBanLogs(guild: Guild, targetId: string, limit = 10): Promise<AuditLogRecord[]> {
+  const [added, removed] = await Promise.all([
+    fetchAuditEntries(guild, AuditLogEvent.MemberBanAdd, targetId),
+    fetchAuditEntries(guild, AuditLogEvent.MemberBanRemove, targetId),
+  ]);
+  return [...added, ...removed].sort((a, b) => b.at - a.at).slice(0, limit);
+}
+
+export async function fetchKickLogs(guild: Guild, targetId: string, limit = 10): Promise<AuditLogRecord[]> {
+  const entries = await fetchAuditEntries(guild, AuditLogEvent.MemberKick, targetId);
+  return entries.sort((a, b) => b.at - a.at).slice(0, limit);
+}
+
+export async function fetchTimeoutLogs(guild: Guild, targetId: string, limit = 10): Promise<AuditLogRecord[]> {
+  const logs = await guild.fetchAuditLogs({ type: AuditLogEvent.MemberUpdate, limit: 50 }).catch(() => null);
+  if (!logs) return [];
+  return [...logs.entries.values()]
+    .filter((entry) => entry.targetId === targetId && entry.changes.some((change) => change.key === 'communication_disabled_until'))
+    .map((entry) => ({ at: entry.createdTimestamp, executorId: entry.executorId, reason: entry.reason || NO_REASON }))
+    .sort((a, b) => b.at - a.at)
+    .slice(0, limit);
 }

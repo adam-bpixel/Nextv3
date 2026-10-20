@@ -3,7 +3,7 @@ import type { Command } from '../../../core/types';
 const command: Command = {
   name: "checkroles",
   aliases: ["cr"],
-  description: "Scan every mutual server for a user's dangerous roles and permissions",
+  description: "Check a user's roles across shared servers.",
   usage: "<user mention, ID, or username>",
   category: "Checker",
   logic: "checkroles",
