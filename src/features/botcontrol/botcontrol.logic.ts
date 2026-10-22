@@ -63,7 +63,7 @@ function buildModal(kind: ControlKind, ownerId: string): ModalBuilder {
 }
 
 export const botControlLogic = {
-  async uchck(ctx) {
+  async ucheck(ctx) {
     const action = (ctx.args[0] ?? 'status').toLowerCase();
     if (action === 'on' || action === 'off') {
       await setUsernameCheckerEnabled(action === 'on');
@@ -74,7 +74,7 @@ export const botControlLogic = {
       await ctx.send(successReply(ctx, `- The username checker is \`${(await isUsernameCheckerEnabled()) ? 'Enabled' : 'Disabled'}\`.`));
       return 'completed';
     }
-    await ctx.send(usageReply(ctx, `Say \`status\`, \`on\` or \`off\`.\nUse: \`${ctx.prefix}uchck <status|on|off>\`.`));
+    await ctx.send(usageReply(ctx, `Say \`status\`, \`on\` or \`off\`.\nUse: \`${ctx.prefix}ucheck <status|on|off>\`.`));
     return 'skipped';
   },
 
