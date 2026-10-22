@@ -15,7 +15,8 @@ import {
 import config, { isOwner } from '../../core/config';
 import { DEVICES, applyDeviceLive, getDeviceKey, resolveDevice } from '../../core/botDevice';
 import type { CommandHandler } from '../../core/types';
-import { STATUSES, resolveStatus, saveDevice, saveStatus } from './botcontrol.model';
+import { successReply, usageReply } from '../../core/usage-replies';
+import { STATUSES, isUsernameCheckerEnabled, resolveStatus, saveDevice, saveStatus, setUsernameCheckerEnabled } from './botcontrol.model';
 
 const PANEL_TIMEOUT_MS = 5 * 60 * 1000;
 const MODAL_TIMEOUT_MS = 2 * 60 * 1000;
@@ -62,6 +63,21 @@ function buildModal(kind: ControlKind, ownerId: string): ModalBuilder {
 }
 
 export const botControlLogic = {
+  async uchck(ctx) {
+    const action = (ctx.args[0] ?? 'status').toLowerCase();
+    if (action === 'on' || action === 'off') {
+      await setUsernameCheckerEnabled(action === 'on');
+      await ctx.send(successReply(ctx, `- The username checker is now \`${action === 'on' ? 'Enabled' : 'Disabled'}\`.`));
+      return 'completed';
+    }
+    if (action === 'status') {
+      await ctx.send(successReply(ctx, `- The username checker is \`${(await isUsernameCheckerEnabled()) ? 'Enabled' : 'Disabled'}\`.`));
+      return 'completed';
+    }
+    await ctx.send(usageReply(ctx, `Say \`status\`, \`on\` or \`off\`.\nUse: \`${ctx.prefix}uchck <status|on|off>\`.`));
+    return 'skipped';
+  },
+
   async bots(ctx) {
     const ownerId = ctx.user.id;
     const panel = await ctx.send(panelPayload(ctx.client, ownerId));

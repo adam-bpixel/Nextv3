@@ -7,6 +7,7 @@ import { defineEvent } from '../core/types';
 import * as levels from '../features/levels/levels.model';
 import { clearAfk, getAfk } from '../features/fun/social.model';
 import { themedReplyFor } from '../core/usage-replies';
+import { findBadWord } from '../features/badwords/badwords.model';
 import { getGuildPrefix, getUserPrefix } from '../features/prefix/prefix.model';
 import { isPremiumUser } from '../features/premium/premium.model';
 import { isWorkMode } from '../features/owner/owner.model';
@@ -47,6 +48,20 @@ async function handleAntilink(message: Message<true>): Promise<boolean> {
   return true;
 }
 
+async function handleBadWords(message: Message<true>): Promise<boolean> {
+  if (!message.content || isOwner(message.author.id)) return false;
+  if (message.member?.permissions.has(PermissionFlagsBits.ManageMessages)) return false;
+  if (!(await findBadWord(message.guildId, message.content))) return false;
+  await message.delete().catch(() => undefined);
+  if (message.channel.isSendable()) {
+    const warning = await message.channel
+      .send({ content: `${message.author}, that word isn't allowed here.`, allowedMentions: { parse: ['users'] } })
+      .catch(() => null);
+    if (warning) setTimeout(() => void warning.delete().catch(() => undefined), ANTILINK_WARNING_LIFETIME_MS);
+  }
+  return true;
+}
+
 async function handleAutoReply(message: Message<true>): Promise<void> {
   const setup = await getGuildSetup(message.guildId);
   const match = findAutoReplyMatch(setup, message.content);
@@ -75,6 +90,10 @@ export default defineEvent({
     if (!isOwner(message.author.id) && await isWorkMode()) return;
     if (message.inGuild() && await handleAntilink(message).catch((error: unknown) => {
       console.error('Antilink check failed:', error);
+      return false;
+    })) return;
+    if (message.inGuild() && await handleBadWords(message).catch((error: unknown) => {
+      console.error('Bad words check failed:', error);
       return false;
     })) return;
     if (config.levels.enabled && message.inGuild()) {

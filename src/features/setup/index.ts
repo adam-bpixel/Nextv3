@@ -2,6 +2,7 @@ import { altTrackerRoutes } from './setup.routes.alttracker';
 import { applyRoutes } from './setup.routes.apply';
 import { autoReplyRoutes } from './setup.routes.autoreply';
 import { autoRoleRoutes } from './setup.routes.autorole';
+import { badWordsRoutes } from './setup.routes.badwords';
 import { blacklistRoutes } from './setup.routes.blacklist';
 import { checkerRoutes } from './setup.routes.checker';
 import { clansRoutes } from './setup.routes.clans';
@@ -13,6 +14,7 @@ import { muteRoutes } from './setup.routes.mute';
 import { overviewRoutes } from './setup.routes.overview';
 import { prefixRoutes } from './setup.routes.prefix';
 import { selfRoleRoutes } from './setup.routes.selfrole';
+import { tagRoleRoutes } from './setup.routes.tagrole';
 import { ticketRoutes } from './setup.routes.ticket';
 import { verificationRoutes } from './setup.routes.verification';
 import { warnRoutes } from './setup.routes.warn';
@@ -36,4 +38,6 @@ export const routes = [
   ...prefixRoutes,
   ...checkerRoutes,
   ...commandsRoutes,
+  ...tagRoleRoutes,
+  ...badWordsRoutes,
 ];

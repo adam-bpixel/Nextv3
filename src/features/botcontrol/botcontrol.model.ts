@@ -49,3 +49,15 @@ export async function loadSavedDevice(): Promise<void> {
   const device = await savedDevice();
   if (device) setDeviceKey(device);
 }
+
+let usernameCheckerEnabled: boolean | null = null;
+
+export async function isUsernameCheckerEnabled(): Promise<boolean> {
+  if (usernameCheckerEnabled === null) usernameCheckerEnabled = (await db.get(COLLECTION, 'usernameChecker')) !== false;
+  return usernameCheckerEnabled;
+}
+
+export async function setUsernameCheckerEnabled(enabled: boolean): Promise<void> {
+  await db.set(COLLECTION, 'usernameChecker', enabled);
+  usernameCheckerEnabled = enabled;
+}

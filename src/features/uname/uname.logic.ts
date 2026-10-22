@@ -3,6 +3,7 @@ import { discordTimestamp } from '../../core/format';
 import db from '../../core/db';
 import type { CommandHandler } from '../../core/types';
 import { errorReply, successReply, themedReplyFor } from '../../core/usage-replies';
+import { isUsernameCheckerEnabled } from '../botcontrol/botcontrol.model';
 import { isConfigured, selfbotApiPost } from '../checker/selfbot';
 import { isPremiumUser } from '../premium/premium.model';
 
@@ -97,7 +98,7 @@ async function takeFromPool(): Promise<FoundHandle | null> {
 let scanning = false;
 
 async function scanOnce(): Promise<void> {
-  if (scanning || !isConfigured()) return;
+  if (scanning || !isConfigured() || !(await isUsernameCheckerEnabled())) return;
   scanning = true;
   try {
     const pool = await db.all(POOL_COLLECTION);
@@ -119,6 +120,10 @@ export const unameLogic = {
   async uname(ctx) {
     if (!isOwner(ctx.user.id) && !(await isPremiumUser(ctx.user.id))) {
       await ctx.send(errorReply(ctx, 'Handle Hunter is available to **Premium** subscribers only.'));
+      return 'skipped';
+    }
+    if (!(await isUsernameCheckerEnabled())) {
+      await ctx.send(errorReply(ctx, 'The username checker is currently turned off.'));
       return 'skipped';
     }
     if (!isConfigured()) {
@@ -160,6 +165,10 @@ export const unameLogic = {
   async unamepool(ctx) {
     if (!isOwner(ctx.user.id) && !(await isPremiumUser(ctx.user.id))) {
       await ctx.send(errorReply(ctx, 'Handle Hunter is available to **Premium** subscribers only.'));
+      return 'skipped';
+    }
+    if (!(await isUsernameCheckerEnabled())) {
+      await ctx.send(errorReply(ctx, 'The username checker is currently turned off.'));
       return 'skipped';
     }
     const pool = await db.all(POOL_COLLECTION);

@@ -22,6 +22,8 @@ import { SETUP_GAMEFINDER_BUTTON } from './setup.ui.gamefinder';
 import { SETUP_PREFIX_BUTTON } from './setup.ui.prefix';
 import { SETUP_SELFROLE_BUTTON } from './setup.ui.selfrole';
 import { sep, text, toPayload } from './setup.ui.shared';
+import { SETUP_BADWORDS_BUTTON } from './setup.ui.badwords';
+import { SETUP_TAGROLE_BUTTON } from './setup.ui.tagrole';
 import { SETUP_TICKET_BUTTON } from './setup.ui.ticket';
 
 const JAIL_DESCRIPTION = 'Configure jailer roles, the jailed role, and the jail logs channel';
@@ -40,6 +42,8 @@ const ALTTRACKER_DESCRIPTION = 'Flag new members whose Discord account is younge
 const GAMEFINDER_DESCRIPTION = 'Configure games, cooldown, panel channel and the game mode manager role';
 const BLACKLIST_DESCRIPTION = `Block bot commands in up to ${MAX_BLACKLISTED_CHANNELS} channels`;
 const PREFIX_DESCRIPTION = 'Configure the server prefix and your personal prefix';
+const BADWORDS_DESCRIPTION = 'Block up to 50 words, each up to 30 characters';
+const TAGROLE_DESCRIPTION = 'Give a role to members who wear this server tag';
 const COMMANDS_DESCRIPTION = 'Disable or enable bot commands in this server (up to 25)';
 const CHECKER_DESCRIPTION = `Choose up to ${MAX_CHECKER_ROLES} roles allowed to use checker commands`;
 
@@ -68,6 +72,8 @@ const OVERVIEW_ROW_BUILDERS: readonly ((ownerId: string) => SectionBuilder)[] = 
   (ownerId: string) => featureRow(ownerId, SETUP_PREFIX_BUTTON, 'Prefix', PREFIX_DESCRIPTION),
   (ownerId: string) => featureRow(ownerId, SETUP_CHECKER_BUTTON, 'Checkers', CHECKER_DESCRIPTION),
   (ownerId: string) => featureRow(ownerId, SETUP_COMMANDS_BUTTON, 'Commands', COMMANDS_DESCRIPTION),
+  (ownerId: string) => featureRow(ownerId, SETUP_TAGROLE_BUTTON, 'Tag Role', TAGROLE_DESCRIPTION),
+  (ownerId: string) => featureRow(ownerId, SETUP_BADWORDS_BUTTON, 'Bad Words', BADWORDS_DESCRIPTION),
 ];
 
 const OVERVIEW_PAGE_SIZE = 4;
