@@ -67,14 +67,14 @@ function themedReply(ctx: Ctx, kind: ReplyKind, message: string): ReplyPayload {
   return themedReplyFor(ctx.guild?.id ?? null, ctx.isInteraction, kind, message);
 }
 
-export function themedReplyFor(guildId: string | null, ephemeral: boolean, kind: ReplyKind, message: string): ReplyPayload {
-  const { title } = REPLY_STYLE[kind];
+export function themedReplyFor(guildId: string | null, ephemeral: boolean, kind: ReplyKind, message: string, options: { title?: string; keepCode?: boolean } = {}): ReplyPayload {
+  const title = options.title ?? REPLY_STYLE[kind].title;
   const accent = (guildId ? cachedColor(guildId) : undefined) ?? config.color;
   const container = new ContainerBuilder()
     .setAccentColor(accent)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${title}`))
     .addSeparatorComponents(new SeparatorBuilder())
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(formatReplyMessage(message, kind === 'usage')));
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(formatReplyMessage(message, options.keepCode ?? kind === 'usage')));
 
   return {
     components: [container.toJSON()],

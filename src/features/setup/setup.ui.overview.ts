@@ -1,7 +1,8 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, SectionBuilder } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, SectionBuilder } from 'discord.js';
 import config from '../../core/config';
 import type { ReplyPayload } from '../../core/context';
-import { ARROW_LEFT_GOLD, ARROW_RIGHT_GOLD } from '../../core/emojis';
+import { DIVIDER_FILE_NAME, dividerFile } from '../../core/divider';
+import { ARROW_LEFT_GOLD, ARROW_RIGHT_GOLD, SETUP_HEADER_ICON } from '../../core/emojis';
 import { SETUP_LOGS_BUTTON } from '../logs/logs.ui';
 import { SETUP_ALTTRACKER_BUTTON } from './setup.ui.alttracker';
 import { MAX_AUTO_ROLES, MAX_BLACKLISTED_CHANNELS, MAX_CHECKER_ROLES } from './setup.model';
@@ -16,6 +17,7 @@ import { SETUP_AUTOROLE_BUTTON } from './setup.ui.autorole';
 import { SETUP_BLACKLIST_BUTTON } from './setup.ui.blacklist';
 import { SETUP_CHECKER_BUTTON } from './setup.ui.checker';
 import { SETUP_CLANS_BUTTON } from './setup.ui.clans';
+import { SETUP_COMMANDS_BUTTON } from './setup.ui.commands';
 import { SETUP_GAMEFINDER_BUTTON } from './setup.ui.gamefinder';
 import { SETUP_PREFIX_BUTTON } from './setup.ui.prefix';
 import { SETUP_SELFROLE_BUTTON } from './setup.ui.selfrole';
@@ -38,6 +40,7 @@ const ALTTRACKER_DESCRIPTION = 'Flag new members whose Discord account is younge
 const GAMEFINDER_DESCRIPTION = 'Configure games, cooldown, panel channel and the game mode manager role';
 const BLACKLIST_DESCRIPTION = `Block bot commands in up to ${MAX_BLACKLISTED_CHANNELS} channels`;
 const PREFIX_DESCRIPTION = 'Configure the server prefix and your personal prefix';
+const COMMANDS_DESCRIPTION = 'Disable or enable bot commands in this server (up to 25)';
 const CHECKER_DESCRIPTION = `Choose up to ${MAX_CHECKER_ROLES} roles allowed to use checker commands`;
 
 function featureRow(ownerId: string, buttonPrefix: string, label: string, description: string): SectionBuilder {
@@ -64,9 +67,10 @@ const OVERVIEW_ROW_BUILDERS: readonly ((ownerId: string) => SectionBuilder)[] = 
   (ownerId: string) => featureRow(ownerId, SETUP_BLACKLIST_BUTTON, 'Blacklist Channel', BLACKLIST_DESCRIPTION),
   (ownerId: string) => featureRow(ownerId, SETUP_PREFIX_BUTTON, 'Prefix', PREFIX_DESCRIPTION),
   (ownerId: string) => featureRow(ownerId, SETUP_CHECKER_BUTTON, 'Checkers', CHECKER_DESCRIPTION),
+  (ownerId: string) => featureRow(ownerId, SETUP_COMMANDS_BUTTON, 'Commands', COMMANDS_DESCRIPTION),
 ];
 
-const OVERVIEW_PAGE_SIZE = 5;
+const OVERVIEW_PAGE_SIZE = 4;
 export const SETUP_OVERVIEW_NAV_PREFIX = 'setup:overview:';
 
 export function setupOverviewNavCustomId(ownerId: string, page: number): string {
@@ -91,10 +95,13 @@ export function setupOverview(ownerId: string, page = 0): ReplyPayload {
   const start = safePage * OVERVIEW_PAGE_SIZE;
   const rows = OVERVIEW_ROW_BUILDERS.slice(start, start + OVERVIEW_PAGE_SIZE);
 
-  const container = new ContainerBuilder().setAccentColor(config.color).addTextDisplayComponents(text('## Server Setup'));
+  const container = new ContainerBuilder().setAccentColor(config.color).addTextDisplayComponents(text(`## ${SETUP_HEADER_ICON} Server Setup`));
   for (const build of rows) {
     container.addSeparatorComponents(sep()).addSectionComponents(build(ownerId));
   }
-  container.addSeparatorComponents(sep()).addActionRowComponents(overviewNavRow(ownerId, safePage, totalPages));
-  return toPayload(container);
+  container
+    .addMediaGalleryComponents(new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(`attachment://${DIVIDER_FILE_NAME}`)))
+    .addSeparatorComponents(sep())
+    .addActionRowComponents(overviewNavRow(ownerId, safePage, totalPages));
+  return { ...toPayload(container), files: [dividerFile()] };
 }

@@ -26,6 +26,7 @@ import {
   unbanUser,
   warnUser,
 } from './moderation.service';
+import { notifyMember, reasonLines } from './moderation.dm';
 import * as ui from './moderation.ui';
 
 const DEFAULT_TIMEOUT_MS = 10 * MS_PER_MINUTE;
@@ -85,6 +86,7 @@ export const moderationLogic = {
     const { durationMs, reason } = timeoutRequest(ctx.args);
     const refusal = await timeoutMember(member, ctx.member, durationMs, reason);
     if (refusal) return fail(ctx, refusal);
+    await notifyMember(member.user, 'You Were Muted', [`Server: \`${member.guild.name}\``, `Until: ${discordTimestamp(Date.now() + durationMs, 'f')}`, ...reasonLines(reason), `By: \`${ctx.user.username}\``]);
     await ctx.send(successReply(ctx, `- Timed out **${member.user.username}** until ${discordTimestamp(Date.now() + durationMs, 'f')}.\n- Reason: ${reason}`));
     return 'completed';
   },
@@ -150,6 +152,7 @@ export const moderationLogic = {
     const warnings = await warnUser(guild, target, ctx.user, reason);
     const member = await guild.members.fetch(target.id).catch(() => null);
     if (member) await syncWarnRole(guild, member, warnings.length);
+    await notifyMember(target, 'You Were Warned', [`Server: \`${guild.name}\``, ...reasonLines(reason), `Warnings: \`${warnings.length}\``, `By: \`${ctx.user.username}\``]);
     await ctx.send(successReply(ctx, `- Warned **${target.username}**. They now have **${warnings.length}** warning(s).\n- Reason: ${reason}`));
     return 'completed';
   },

@@ -1,4 +1,5 @@
 import { Client, Collection, GatewayIntentBits, Options, Partials } from 'discord.js';
+import { buildShardingStrategy } from './botDevice';
 import type { InteractionRoute, LoadedPrefixCommand, LoadedSlashCommand } from './types';
 
 const MESSAGE_CACHE_PER_CHANNEL = 50;
@@ -35,6 +36,7 @@ export class BotClient extends Client {
         messages: { interval: MESSAGE_SWEEP_INTERVAL_SECONDS, lifetime: MESSAGE_MAX_AGE_SECONDS },
       },
       rest: { timeout: REST_REQUEST_TIMEOUT_MS },
+      ws: { buildStrategy: buildShardingStrategy },
     });
   }
 

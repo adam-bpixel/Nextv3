@@ -8,7 +8,7 @@ async function flushReminders(client: Client): Promise<void> {
   for (const reminder of await dueReminders(Date.now())) {
     try {
       const user = await client.users.fetch(reminder.userId).catch(() => null);
-      if (user) await user.send(`⏰ Reminder: ${reminder.text}`).catch(() => undefined);
+      if (user) await user.send(`Reminder: ${reminder.text}`).catch(() => undefined);
     } finally {
       await deleteReminder(reminder.id);
     }

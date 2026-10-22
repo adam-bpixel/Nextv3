@@ -2,7 +2,7 @@ import type { Command } from '../../../core/types';
 
 const command: Command = {
   name: "banner",
-  aliases: [],
+  aliases: ["b"],
   description: "Show a user's banner without pinging",
   usage: "",
   category: "Information",

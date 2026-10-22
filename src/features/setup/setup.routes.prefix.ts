@@ -1,5 +1,5 @@
 import { MessageFlags, type ButtonInteraction, type ModalSubmitInteraction } from 'discord.js';
-import config from '../../core/config';
+import { isOwner } from '../../core/config';
 import { defineRoute } from '../../core/types';
 import { themedReplyFor } from '../../core/usage-replies';
 import { isPremiumUser } from '../premium/premium.model';
@@ -19,7 +19,7 @@ import {
 const PREMIUM_REQUIRED_TEXT = 'Personal prefixes need an active Premium subscription.';
 
 async function canUseSelfPrefix(userId: string): Promise<boolean> {
-  return userId === config.ownerId || isPremiumUser(userId);
+  return isOwner(userId) || isPremiumUser(userId);
 }
 
 async function renderPrefixView(guildId: string, userId: string) {

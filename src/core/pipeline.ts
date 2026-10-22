@@ -1,4 +1,4 @@
-import config, { fillTemplate } from './config';
+import config, { fillTemplate, isOwner } from './config';
 import { getCooldown } from './cooldowns';
 import db from './db';
 import { permissionLabel } from './permissions';
@@ -12,6 +12,7 @@ import { errorReply } from './usage-replies';
 import { getBlacklistEntry, isWorkMode } from '../features/owner/owner.model';
 import { isBlacklistedChannel } from '../features/setup/setup.model.blacklist';
 import { getCheckerRoles } from '../features/setup/setup.model.checker';
+import { isCommandDisabled } from '../features/server/server.model';
 
 const COOLDOWNS_COLLECTION = 'cooldowns';
 const MS_PER_SECOND = 1000;
@@ -36,13 +37,18 @@ async function perform(ctx: Ctx, command: LoadedCommand): Promise<CommandOutcome
   return replayCommand(ctx, command);
 }
 
+function isSetupCommand(command: LoadedCommand): boolean {
+  if ('path' in command) return command.path === 'setup' || command.path.startsWith('setup ');
+  return command.category === 'setup';
+}
+
 function isInVoice(ctx: Ctx): boolean {
   return Boolean(ctx.member?.voice.channelId);
 }
 
 export async function run(ctx: Ctx, command: LoadedCommand): Promise<void> {
   try {
-    if (ctx.user.id !== config.ownerId) {
+    if (!isOwner(ctx.user.id)) {
       if (await isWorkMode()) {
         if (ctx.isInteraction) await ctx.send(errorReply(ctx, 'The bot is currently in owner work mode.'));
         return;
@@ -57,11 +63,15 @@ export async function run(ctx: Ctx, command: LoadedCommand): Promise<void> {
       if (ctx.isInteraction) await ctx.send(errorReply(ctx, config.messages.serverOnly));
       return;
     }
-    if (ctx.guild && ctx.channel && ctx.user.id !== config.ownerId && await isBlacklistedChannel(ctx.guild.id, ctx.channel.id)) {
+    if (ctx.guild && ctx.channel && !isOwner(ctx.user.id) && await isBlacklistedChannel(ctx.guild.id, ctx.channel.id)) {
       if (ctx.isInteraction) await ctx.send(errorReply(ctx, 'Bot commands are disabled in this channel.'));
       return;
     }
-    if (command.ownerOnly && ctx.user.id !== config.ownerId) {
+    if (ctx.guild && (await isCommandDisabled(ctx.guild.id, commandLabel(command)))) {
+      await ctx.send(errorReply(ctx, 'This command is disabled in this server.'));
+      return;
+    }
+    if (command.ownerOnly && !isOwner(ctx.user.id)) {
       await ctx.send(errorReply(ctx, config.messages.ownerOnly));
       return;
     }
@@ -71,7 +81,19 @@ export async function run(ctx: Ctx, command: LoadedCommand): Promise<void> {
       await ctx.send(errorReply(ctx, fillTemplate(config.messages.missingPermission, { permission })));
       return;
     }
-    if ('category' in command && command.category === 'Checker' && ctx.guild && ctx.user.id !== config.ownerId && !ctx.hasPermission('administrator')) {
+    if (isSetupCommand(command) && ctx.guild && !isOwner(ctx.user.id)) {
+      if (!ctx.hasPermission('administrator')) {
+        await ctx.send(errorReply(ctx, fillTemplate(config.messages.missingPermission, { permission: permissionLabel('administrator') })));
+        return;
+      }
+      const botMember = ctx.guild.members.me ?? await ctx.guild.members.fetchMe().catch(() => null);
+      const outranksBot = ctx.user.id === ctx.guild.ownerId || (ctx.member && botMember && ctx.member.roles.highest.comparePositionTo(botMember.roles.highest) > 0);
+      if (!outranksBot) {
+        await ctx.send(errorReply(ctx, "Your highest role must be above the bot's highest role to use setup commands."));
+        return;
+      }
+    }
+    if ('category' in command && command.category === 'Checker' && ctx.guild && !isOwner(ctx.user.id) && !ctx.hasPermission('administrator')) {
       const checkerRoleIds = await getCheckerRoles(ctx.guild.id);
       if (checkerRoleIds.length && !checkerRoleIds.some((id) => ctx.member?.roles.cache.has(id) ?? false)) {
         await ctx.send(errorReply(ctx, "You don't have permission to use checker commands."));

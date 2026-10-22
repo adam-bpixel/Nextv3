@@ -13,6 +13,10 @@ import { moderationLogic } from './moderation/moderation.logic';
 import { ownerLogic } from './owner/owner.logic';
 import { prefixLogic } from './prefix/prefix.logic';
 import { premiumLogic } from './premium/premium.logic';
+import { imageToolsLogic } from './imagetools/imagetools.logic';
+import { botControlLogic } from './botcontrol/botcontrol.logic';
+import { colorsLogic } from './colors/colors.logic';
+import { unameLogic } from './uname/uname.logic';
 import { profileLogic } from './profile/profile.logic';
 import { rolesLogic } from './roles/roles.logic';
 import { securityLogic } from './security/security.logic';
@@ -51,6 +55,10 @@ const LOGIC_GROUPS = [
   topLogic,
   invitesLogic,
   premiumLogic,
+  imageToolsLogic,
+  botControlLogic,
+  colorsLogic,
+  unameLogic,
   gamesLogic,
   interactionsLogic,
 ] as const;
@@ -80,6 +88,10 @@ export type LogicName =
   | keyof typeof topLogic
   | keyof typeof invitesLogic
   | keyof typeof premiumLogic
+  | keyof typeof imageToolsLogic
+  | keyof typeof botControlLogic
+  | keyof typeof colorsLogic
+  | keyof typeof unameLogic
   | keyof typeof gamesLogic
   | keyof typeof interactionsLogic;
 

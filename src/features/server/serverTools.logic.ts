@@ -124,8 +124,8 @@ export const serverToolsLogic = {
   },
 
   async pushdatabase(ctx) {
-    const config = (await import('../../core/config')).default;
-    if (ctx.user.id !== config.ownerId) {
+    const { isOwner } = await import('../../core/config');
+    if (!isOwner(ctx.user.id)) {
       return fail(ctx, 'You are not authorized to use this command.');
     }
     const db = (await import('../../core/db')).default;

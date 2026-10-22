@@ -1,7 +1,8 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, type APIMessageTopLevelComponent } from 'discord.js';
-import config from '../../core/config';
+import config, { isOwner } from '../../core/config';
 import type { BotClient } from '../../core/client';
 import type { ReplyPayload } from '../../core/context';
+import { dividerComponent, dividerFile } from '../../core/divider';
 import { ARROW_LEFT_GOLD, ARROW_RIGHT_GOLD, HELP_CATEGORY_ICONS } from '../../core/emojis';
 import { cachedColor } from '../theme/theme.model';
 
@@ -82,7 +83,7 @@ function categoriesOf(client: BotClient, viewerId?: string): Map<string, Command
   const categories = new Map<string, CommandEntry[]>();
   for (const command of client.commands.values()) {
     if (!command.category) continue;
-    if (command.ownerOnly && viewerId !== config.ownerId) continue;
+    if (command.ownerOnly && !isOwner(viewerId)) continue;
     const entries = categories.get(command.category) ?? [];
     entries.push({ name: command.name, description: command.description });
     categories.set(command.category, entries);
@@ -155,12 +156,14 @@ export function helpMenu(client: BotClient, ownerId: string, guildId?: string | 
   return {
     flags: MessageFlags.IsComponentsV2,
     allowedMentions: { parse: [] },
+    files: [dividerFile()],
     components: container(
       [
         { type: 10, content: `# ${botName} Help Menu` },
         SEPARATOR,
         introSection,
         SEPARATOR,
+        dividerComponent(),
         {
           type: 1,
           components: [{ type: 3, custom_id: `${HELP_SELECT_ID}${ownerId}`, placeholder: 'Select a category', min_values: 1, max_values: 1, options: options.slice(0, 25) }],

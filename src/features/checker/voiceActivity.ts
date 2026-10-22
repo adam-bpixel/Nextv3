@@ -37,7 +37,7 @@ interface GuildLike {
   name: string;
   memberCount: number;
   iconURL(options?: { size?: number }): string | null;
-  voiceStates: { cache: { values(): IterableIterator<VoiceStateLike> } };
+  voiceStates: { cache: { values(): IterableIterator<VoiceStateLike>; get(id: string): VoiceStateLike | undefined } };
   channels: { cache: { get(id: string): { name: string } | undefined } };
   presences: { cache: { get(id: string): { status: string } | undefined } };
 }
@@ -55,11 +55,10 @@ export async function findVoiceLocations(client: Client, userId: string): Promis
   const seen = new Set<string>();
   const found: VoiceLocation[] = [];
   for (const guild of guilds) {
-    const states = [...guild.voiceStates.cache.values()];
-    const state = states.find((candidate) => candidate.id === userId);
+    const state = guild.voiceStates.cache.get(userId);
     if (!state?.channelId || seen.has(`${guild.id}:${state.channelId}`)) continue;
     seen.add(`${guild.id}:${state.channelId}`);
-    const members = states
+    const members = [...guild.voiceStates.cache.values()]
       .filter((candidate) => candidate.channelId === state.channelId)
       .map((candidate) => ({
         id: candidate.id,
@@ -86,7 +85,8 @@ export async function getVoiceLeaderboard(client: Client): Promise<GuildVoiceSum
   for (const guild of guilds) {
     if (seen.has(guild.id)) continue;
     seen.add(guild.id);
-    const voice = [...guild.voiceStates.cache.values()].filter((state) => state.channelId !== null).length;
+    let voice = 0;
+    for (const state of guild.voiceStates.cache.values()) if (state.channelId !== null) voice++;
     entries.push({ id: guild.id, name: guild.name, iconURL: guild.iconURL({ size: 256 }), voice, total: guild.memberCount });
   }
   return entries.sort((a, b) => b.voice - a.voice);

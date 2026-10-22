@@ -38,6 +38,7 @@ export interface Config {
   root: string;
   token: string;
   ownerId: string;
+  ownerIds: readonly string[];
   supportServerUrl: string;
   webhookUrl: string;
   mongoUri: string;
@@ -68,6 +69,11 @@ function readMessages(source: JsonObject, where: string): Record<MessageKey, str
     notRecorded: read('notRecorded'),
     premiumRequired: read('premiumRequired'),
   };
+}
+
+function ownerFields(raw: string): { ownerId: string; ownerIds: readonly string[] } {
+  const ownerIds = raw.split(/[\s,;]+/).filter(Boolean);
+  return { ownerId: ownerIds[0] ?? '', ownerIds };
 }
 
 export function parseConfig(fileContents: JsonObject, env: NodeJS.ProcessEnv): Config {
@@ -103,7 +109,7 @@ export function parseConfig(fileContents: JsonObject, env: NodeJS.ProcessEnv): C
     messages: readMessages(fileContents, where),
     root: PROJECT_ROOT,
     token: env.DISCORD_TOKEN || '',
-    ownerId: env.OWNER_ID || (typeof fileOwnerId === 'string' ? fileOwnerId : ''),
+    ...ownerFields(env.OWNER_ID || (typeof fileOwnerId === 'string' ? fileOwnerId : '')),
     supportServerUrl: env.SUPPORT_SERVER_URL || '',
     webhookUrl: env.WEBHOOK_URL || '',
     mongoUri: env.MONGODB_URI || '',
@@ -124,6 +130,10 @@ const config: Config = loadConfig();
 
 export function fillTemplate(template: string, values: Readonly<Record<string, string>>): string {
   return template.replace(/\{(\w+)\}/g, (placeholder, name: string) => values[name] ?? placeholder);
+}
+
+export function isOwner(userId: string | null | undefined): boolean {
+  return Boolean(userId) && config.ownerIds.includes(userId as string);
 }
 
 export default config;

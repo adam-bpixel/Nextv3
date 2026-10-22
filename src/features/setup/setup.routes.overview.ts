@@ -14,7 +14,9 @@ export const overviewRoutes = [
       if (!parsed) return;
       const [, ownerId, pageText] = parsed as unknown as [string, string, string];
       if (await rejectOtherUser(interaction, ownerId)) return;
-      await interaction.update(setupOverview(ownerId, Number(pageText)));
+      const payload = setupOverview(ownerId, Number(pageText));
+      delete payload.files;
+      await interaction.update(payload);
     },
   }),
 ];

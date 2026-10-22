@@ -56,7 +56,7 @@ export function fullCheckPage(user: User, entries: readonly MutualGuildEntry[], 
 
   const container = new ContainerBuilder()
     .setAccentColor(config.color)
-    .addTextDisplayComponents(text(`# ${FULLCHECK_ICON} __Full check — ${user.tag}__\n-# Across ${totalPages} shared ${totalPages === 1 ? 'server' : 'servers'}`))
+    .addTextDisplayComponents(text(`# ${FULLCHECK_ICON} __Full check — ${user.tag}__`))
     .addSeparatorComponents(sep())
     .addTextDisplayComponents(text(`Page ${safeIndex + 1}/${totalPages}`))
     .addSeparatorComponents(sep())
@@ -68,12 +68,13 @@ export function fullCheckPage(user: User, entries: readonly MutualGuildEntry[], 
           `- __Status:__ **${statusOf(entry)}**\n` +
           `- __Nickname:__ \`${entry.nickname ?? 'None'}\`\n` +
           `- __Joined:__ ${entry.joinedAt !== null ? `<t:${entry.joinedAt}:R>` : 'Unknown'}\n` +
-          `- __Members:__ \`${entry.members.toLocaleString()}\``,
+          `- __Members:__ \`${entry.members.toLocaleString()}\`\n` +
+          `- __Shared ${totalPages === 1 ? 'server' : 'servers'}:__ \`${totalPages}\``,
         entry.iconURL ?? avatar,
       ),
     )
     .addSeparatorComponents(sep())
-    .addTextDisplayComponents(text(`## ${SERVERS_ICON} Dangerous permissions`))
+    .addTextDisplayComponents(text(`## ${SERVERS_ICON} __Dangerous permissions__`))
     .addSeparatorComponents(sep())
     .addTextDisplayComponents(text(dangerLine(entry)))
     .addSeparatorComponents(sep())

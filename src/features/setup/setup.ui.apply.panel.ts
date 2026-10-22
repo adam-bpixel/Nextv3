@@ -134,10 +134,9 @@ export function applyReviewCard(
 
 export function applyDecisionDM(guildName: string, categoryName: string, verdict: 'Accepted' | 'Rejected', inviteURL: string | null): ReplyPayload {
   const accentColor = verdict === 'Accepted' ? APPLY_ACCEPTED_COLOR : APPLY_REJECTED_COLOR;
-  const emoji = verdict === 'Accepted' ? APPLY_ACCEPT_ICON : APPLY_REJECT_ICON;
   const container = new ContainerBuilder()
     .setAccentColor(accentColor)
-    .addTextDisplayComponents(text(`## ${emoji} Application ${verdict}`))
+    .addTextDisplayComponents(text(`## Application ${verdict}`))
     .addSeparatorComponents(sep())
     .addTextDisplayComponents(text(`- __Your **${categoryName}** application in **${guildName}** was ${verdict.toLowerCase()}.__`));
   if (inviteURL) {

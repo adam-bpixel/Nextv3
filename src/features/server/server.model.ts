@@ -47,10 +47,13 @@ export async function isCommandDisabled(guildId: string, commandName: string): P
   return (await getDisabledCommands(guildId)).includes(commandName.toLowerCase());
 }
 
+export const MAX_DISABLED_COMMANDS = 25;
+
 export async function disableCommandFor(guildId: string, commandName: string): Promise<boolean> {
   const list = await getDisabledCommands(guildId);
   const name = commandName.toLowerCase();
   if (list.includes(name)) return false;
+  if (list.length >= MAX_DISABLED_COMMANDS) throw new Error(`You can disable up to ${MAX_DISABLED_COMMANDS} commands.`);
   await db.set(DISABLED_COLLECTION, guildId, [...list, name]);
   return true;
 }

@@ -1,12 +1,12 @@
 import { Events, PermissionFlagsBits, type Message } from 'discord.js';
-import config from '../core/config';
+import config, { isOwner } from '../core/config';
 import { asBotClient } from '../core/client';
 import * as pipeline from '../core/pipeline';
 import { makeContext } from '../core/context';
 import { defineEvent } from '../core/types';
 import * as levels from '../features/levels/levels.model';
 import { clearAfk, getAfk } from '../features/fun/social.model';
-import { replayMention } from '../features/recordings/recordings.service';
+import { themedReplyFor } from '../core/usage-replies';
 import { getGuildPrefix, getUserPrefix } from '../features/prefix/prefix.model';
 import { isPremiumUser } from '../features/premium/premium.model';
 import { isWorkMode } from '../features/owner/owner.model';
@@ -21,6 +21,15 @@ const ANTILINK_WARNING_LIFETIME_MS = 5000;
 function isBareMention(message: Message): boolean {
   const self = message.client.user;
   return message.mentions.has(self) && message.content.replace(USER_MENTION, '').trim() === '';
+}
+
+async function replyWithPrefixes(message: Message): Promise<boolean> {
+  const serverPrefix = await getGuildPrefix(message.guildId);
+  const personalPrefix = await getUserPrefix(message.author.id);
+  const personalActive = personalPrefix && (isOwner(message.author.id) || await isPremiumUser(message.author.id));
+  const lines = [`Server prefix: \`${serverPrefix}\``, `Your prefix: ${personalActive ? `\`${personalPrefix}\`` : '`Not set`'}`];
+  await message.reply({ ...themedReplyFor(message.guildId, false, 'success', lines.join('\n'), { title: 'Prefix', keepCode: true }), allowedMentions: { parse: [], repliedUser: false } });
+  return true;
 }
 
 async function handleAntilink(message: Message<true>): Promise<boolean> {
@@ -63,7 +72,7 @@ export default defineEvent({
   async execute(message) {
     if (message.author.bot) return;
     if (message.inGuild() && !(await isAssignedBot(asBotClient(message.client).fleetId, message.guildId))) return;
-    if (message.author.id !== config.ownerId && await isWorkMode()) return;
+    if (!isOwner(message.author.id) && await isWorkMode()) return;
     if (message.inGuild() && await handleAntilink(message).catch((error: unknown) => {
       console.error('Antilink check failed:', error);
       return false;
@@ -76,7 +85,7 @@ export default defineEvent({
     }
 
     if (isBareMention(message)) {
-      const answered = await replayMention(message).catch((error: unknown) => {
+      const answered = await replyWithPrefixes(message).catch((error: unknown) => {
         console.error('Mention reply failed:', error);
         return false;
       });
@@ -84,7 +93,7 @@ export default defineEvent({
     }
 
     const personalPrefix = await getUserPrefix(message.author.id);
-    const prefix = personalPrefix && (message.author.id === config.ownerId || await isPremiumUser(message.author.id))
+    const prefix = personalPrefix && (isOwner(message.author.id) || await isPremiumUser(message.author.id))
       ? personalPrefix
       : await getGuildPrefix(message.guildId);
     const args = message.content.startsWith(prefix) ? message.content.slice(prefix.length).trim().split(/\s+/).filter(Boolean) : [];

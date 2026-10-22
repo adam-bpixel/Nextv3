@@ -86,3 +86,17 @@ export async function setGuildProfileField(guildId: string, field: keyof GuildPr
   await db.set(GUILD_PROFILES, guildId, updated);
   return updated;
 }
+
+export interface PremiumEntry extends PremiumStatus {
+  id: string;
+}
+
+export async function listPremium(kind: 'user' | 'server'): Promise<PremiumEntry[]> {
+  const entries = await db.all(kind === 'server' ? GUILD_PREMIUM : USER_PREMIUM);
+  const active: PremiumEntry[] = [];
+  for (const entry of entries) {
+    const status = readStatus(entry.value);
+    if (status && status.expiresAt > Date.now()) active.push({ id: entry.key, ...status });
+  }
+  return active.sort((a, b) => b.expiresAt - a.expiresAt);
+}

@@ -8,7 +8,7 @@ import { asBotClient, type BotClient } from './client';
 import { themedReplyFor } from './usage-replies';
 import { getGuildPrefix } from '../features/prefix/prefix.model';
 import { getBlacklistEntry, isWorkMode } from '../features/owner/owner.model';
-import config from './config';
+import { isOwner } from './config';
 
 export const UNROUTED_MODAL_ACK = '✅ Received.';
 
@@ -52,7 +52,7 @@ async function acknowledgeUnrouted(interaction: Interaction): Promise<void> {
 
 export async function routeInteraction(client: BotClient, interaction: Interaction): Promise<void> {
   try {
-    if (interaction.user.id !== config.ownerId) {
+    if (!isOwner(interaction.user.id)) {
       if (await isWorkMode()) {
         if (interaction.isRepliable()) await interaction.reply(themedReplyFor(interaction.guildId, true, 'error', 'The bot is currently in owner work mode.'));
         return;

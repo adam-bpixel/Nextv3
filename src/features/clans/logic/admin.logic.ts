@@ -201,7 +201,7 @@ export const clansAdminLogic = {
     const inviteURL = await getServerInviteURL(guild);
     const warnContainer = new ContainerBuilder()
       .setAccentColor(config.color)
-      .addTextDisplayComponents(text('## ⚠️ Clan Warning'))
+      .addTextDisplayComponents(text('## Clan Warning'))
       .addSeparatorComponents(sep())
       .addTextDisplayComponents(text(`- __Your clan__ **${clan.name}** __received a warning :__\n- ${reason}`));
     if (inviteURL) warnContainer.addSeparatorComponents(sep()).addActionRowComponents(serverLinkButtonRow(guild.name, inviteURL));

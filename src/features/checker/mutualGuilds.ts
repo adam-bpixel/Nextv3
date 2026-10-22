@@ -35,7 +35,7 @@ interface GuildLike {
   ownerId: string;
   memberCount: number;
   iconURL(options?: { size?: number }): string | null;
-  members: { fetch(id: string): Promise<MemberLike> };
+  members: { fetch(id: string): Promise<MemberLike>; cache?: { get(id: string): MemberLike | undefined } };
 }
 
 const TOP_ROLES_COUNT = 6;
@@ -61,11 +61,14 @@ function toEntry(guild: GuildLike, member: MemberLike): MutualGuildEntry {
 }
 
 async function fetchEntry(guild: GuildLike, userId: string): Promise<MutualGuildEntry | null> {
-  const member = await guild.members.fetch(userId).catch(() => null);
+  const member = guild.members.cache?.get(userId) ?? (await guild.members.fetch(userId).catch(() => null));
   return member ? toEntry(guild, member) : null;
 }
 
-const FETCH_BATCH_SIZE = 40;
+const FETCH_BATCH_SIZE = 60;
+const RESULT_CACHE_TTL_MS = 45_000;
+
+const resultCache = new Map<string, { at: number; entries: MutualGuildEntry[] }>();
 
 async function fetchEntriesBatched(guilds: readonly GuildLike[], userId: string): Promise<(MutualGuildEntry | null)[]> {
   const results: (MutualGuildEntry | null)[] = [];
@@ -85,13 +88,23 @@ function mutualGuildIds(profile: unknown): string[] | null {
   return ids;
 }
 
+const PROFILE_CACHE_TTL_MS = 5 * 60 * 1000;
+const profileCache = new Map<string, { at: number; profile: unknown }>();
+
+async function cachedProfile(self: { users: { fetch(id: string): Promise<{ getProfile(): Promise<unknown> }> } }, userId: string): Promise<unknown> {
+  const cached = profileCache.get(userId);
+  if (cached && Date.now() - cached.at < PROFILE_CACHE_TTL_MS) return cached.profile;
+  const target = await self.users.fetch(userId);
+  const profile: unknown = await target.getProfile();
+  profileCache.set(userId, { at: Date.now(), profile });
+  return profile;
+}
+
 async function selfbotCandidates(userId: string): Promise<GuildLike[]> {
   if (!isConfigured()) return [];
   return ensureLoggedIn()
     .then(async (self) => {
-      const target = await self.users.fetch(userId);
-      const profile: unknown = await target.getProfile();
-      const ids = mutualGuildIds(profile);
+      const ids = mutualGuildIds(await cachedProfile(self, userId));
       if (!ids) return [...self.guilds.cache.values()];
       const resolved: GuildLike[] = [];
       for (const id of ids) {
@@ -104,23 +117,30 @@ async function selfbotCandidates(userId: string): Promise<GuildLike[]> {
 }
 
 export async function getMutualGuilds(client: Client, userId: string): Promise<MutualGuildEntry[]> {
+  const cached = resultCache.get(userId);
+  if (cached && Date.now() - cached.at < RESULT_CACHE_TTL_MS) return cached.entries;
+
   const seen = new Set<string>();
   const entries: MutualGuildEntry[] = [];
 
-  const botResults = await fetchEntriesBatched([...client.guilds.cache.values()], userId);
+  const [botResults, selfbotGuilds] = await Promise.all([
+    fetchEntriesBatched([...client.guilds.cache.values()], userId),
+    selfbotCandidates(userId),
+  ]);
   for (const entry of botResults) {
     if (!entry) continue;
     seen.add(entry.id);
     entries.push(entry);
   }
 
-  const candidates = (await selfbotCandidates(userId)).filter((guild) => !seen.has(guild.id));
-  const selfResults = await fetchEntriesBatched(candidates, userId);
+  const selfResults = await fetchEntriesBatched(selfbotGuilds.filter((guild) => !seen.has(guild.id)), userId);
   for (const entry of selfResults) {
     if (!entry) continue;
     seen.add(entry.id);
     entries.push(entry);
   }
 
-  return entries.sort((a, b) => Number(b.isOwner) - Number(a.isOwner) || Number(b.isAdmin) - Number(a.isAdmin) || b.members - a.members);
+  const sorted = entries.sort((a, b) => Number(b.isOwner) - Number(a.isOwner) || Number(b.isAdmin) - Number(a.isAdmin) || b.members - a.members);
+  resultCache.set(userId, { at: Date.now(), entries: sorted });
+  return sorted;
 }

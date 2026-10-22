@@ -14,7 +14,7 @@ const roleMention = (roleId: string): string => `<@&${roleId}>`;
 export function verifiedDmEmbed(kind: VerificationKind, guildName: string, roleId: string, inviteURL: string | null): ReplyPayload {
   const container = new ContainerBuilder()
     .setAccentColor(colorFor(kind))
-    .addTextDisplayComponents(text(`## ${kind === 'female' ? '♀️ Verified' : '♂️ Verified'}`))
+    .addTextDisplayComponents(text('## Verified'))
     .addSeparatorComponents(sep())
     .addTextDisplayComponents(text(`- __You have been verified as__ **${kind}** __in__ **${guildName}**.\n- __Role :__ ${roleMention(roleId)}`));
   if (inviteURL) container.addSeparatorComponents(sep()).addActionRowComponents(serverLinkButtonRow(guildName, inviteURL));

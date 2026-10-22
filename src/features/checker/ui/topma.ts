@@ -175,15 +175,10 @@ export async function topVoicePage(
   let buffer: Buffer;
   if (safePage === 0) {
     const session = getOrCreateTopmaSession(invokerId, inVoice, totalPages, true);
-    const promises: [Promise<Buffer>, Promise<Buffer | null>] = [
-      session.getPage(0),
-      totalPages > 1 ? session.getPage(1) : Promise.resolve(null),
-    ];
-    const [pageZeroBuf] = await Promise.all(promises);
-    buffer = pageZeroBuf;
+    buffer = await session.getPage(0);
 
-    if (totalPages > 2) {
-      session.prefetch(Array.from({ length: totalPages - 2 }, (_, i) => i + 2));
+    if (totalPages > 1) {
+      session.prefetch(Array.from({ length: totalPages - 1 }, (_, i) => i + 1));
     }
   } else {
     const session = getOrCreateTopmaSession(invokerId, inVoice, totalPages, false);

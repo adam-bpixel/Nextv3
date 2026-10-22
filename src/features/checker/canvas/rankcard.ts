@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createCanvas, loadImage, type Image, type SKRSContext2D } from '@napi-rs/canvas';
 import config from '../../../core/config';
-import { drawAvatar, drawCoverImage, fillRoundedRect, loadFonts, loadIconUncached, RANK_FONT_FAMILY, strokeCurrentPath, truncate, CANVAS_WIDTH } from './shared';
+import { drawAvatar, drawCoverImage, fillRoundedRect, loadAvatar, loadFonts, loadIconUncached, RANK_FONT_FAMILY, strokeCurrentPath, truncate, CANVAS_WIDTH } from './shared';
 
 export interface RankCardData {
   username: string;
@@ -134,7 +134,7 @@ export async function renderRankCard(data: DualRankCardData): Promise<Buffer> {
   const avatarY = cardY + cardH / 2;
   const avatarRadius = 85;
   const [avatar, decoration] = await Promise.all([
-    loadIconUncached(data.avatarURL),
+    loadAvatar(data.avatarURL),
     loadIconUncached(data.avatarDecorationURL),
   ]);
   drawAvatar(ctx, avatar, data.username, avatarX, avatarY, avatarRadius, `bold 52px ${RANK_FONT_FAMILY}`);

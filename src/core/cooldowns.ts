@@ -120,6 +120,11 @@ export const COOLDOWNS: Record<string, number> = {
 
   // Premium
   guildprofile: T_LIGHT,
+  uname: 60,
+  blur: 10,
+  removebg: 30,
+  colors: 20,
+  unamepool: 10,
   premium: T_LIGHT,
   subscription: T_LIGHT,
   theme: T_LIGHT,

@@ -1,4 +1,4 @@
-import config, { fillTemplate } from '../../core/config';
+import config, { fillTemplate, isOwner } from '../../core/config';
 import { permissionLabel } from '../../core/permissions';
 import { fail, requireGuild } from '../../core/replies';
 import type { CommandHandler, CommandOutcome } from '../../core/types';
@@ -7,7 +7,7 @@ import { isPremiumUser } from '../premium/premium.model';
 import { getGuildPrefix, getUserPrefix, isValidPrefix, resetGuildPrefix, resetUserPrefix, setGuildPrefix, setUserPrefix } from './prefix.model';
 
 async function canUsePersonalPrefix(userId: string): Promise<boolean> {
-  return userId === config.ownerId || isPremiumUser(userId);
+  return isOwner(userId) || isPremiumUser(userId);
 }
 
 async function setSelfPrefix(ctx: Parameters<CommandHandler>[0]): Promise<CommandOutcome> {

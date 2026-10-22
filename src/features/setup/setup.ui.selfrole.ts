@@ -267,3 +267,29 @@ export function selfRolePanel(
   }
   return toPayload(container);
 }
+
+export interface SelfRoleLogEntry {
+  memberId: string;
+  roleId: string;
+  sectionName: string;
+  added: boolean;
+  at: number;
+}
+
+export function selfRoleLogCard(accentColor: number, entry: SelfRoleLogEntry): ReplyPayload {
+  const container = new ContainerBuilder()
+    .setAccentColor(accentColor)
+    .addTextDisplayComponents(text(`## Self Role ${entry.added ? 'Added' : 'Removed'}`))
+    .addSeparatorComponents(sep())
+    .addTextDisplayComponents(
+      text(
+        [
+          `- __Member__ ﹕ <@${entry.memberId}>`,
+          `- __Role__ ﹕ <@&${entry.roleId}>`,
+          `- __Section__ ﹕ **${entry.sectionName}**`,
+          `- __Time__ ﹕ <t:${Math.floor(entry.at / 1000)}:R>`,
+        ].join('\n'),
+      ),
+    );
+  return toPayload(container);
+}

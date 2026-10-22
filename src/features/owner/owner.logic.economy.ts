@@ -1,4 +1,4 @@
-import config from '../../core/config';
+import { isOwner } from '../../core/config';
 import { formatDuration, isDuration, parseDuration } from '../../core/format';
 import type { CommandHandler } from '../../core/types';
 import { successReply } from '../../core/usage-replies';
@@ -42,7 +42,7 @@ export const ownerEconomyLogic = {
     if (sub !== 'add' && sub !== 'remove') return usageFailure(ctx, `Say \`add\`, \`remove\`, or \`list\`.\nUse: \`${ctx.prefix}blacklist <add|remove|list> [user] [reason]\`.`);
     const target = await targetFrom(ctx, 1);
     if (!target) return usageFailure(ctx, `Mention a user or give their ID.\nUse: \`${ctx.prefix}blacklist ${sub} <user mention or ID> [reason]\`.`);
-    if (target.id === config.ownerId) return errorFailure(ctx, 'The bot owner cannot be blacklisted.');
+    if (isOwner(target.id)) return errorFailure(ctx, 'The bot owner cannot be blacklisted.');
     const existing = await getBlacklistEntry(target.id);
     if (sub === 'add') {
       if (existing) return errorFailure(ctx, `<@${target.id}> is already blacklisted.`);

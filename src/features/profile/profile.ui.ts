@@ -33,6 +33,7 @@ export async function profileImage(options: ProfileImageOptions): Promise<ReplyP
   const image = await renderProfileCard({
     username: displayName,
     handle: `@${user.username}`,
+    botName: user.client.user?.username,
     joinedAt,
     backgroundURL,
     serverTag,

@@ -5,6 +5,8 @@ import { printStartupInfo } from '../core/banner';
 import { definitions } from '../core/slash';
 import { defineEvent } from '../core/types';
 import { syncApplicationEmojis } from '../core/emojis';
+import { startUnameScanner } from '../features/uname/uname.logic';
+import { savedStatus } from '../features/botcontrol/botcontrol.model';
 import { isConfigured, warmUp } from '../features/checker/selfbot';
 import { startVoiceXpTracking } from '../features/levels/voiceTracker';
 import { loadThemeCache } from '../features/theme/theme.model';
@@ -44,6 +46,9 @@ export default defineEvent({
         console.warn(`Emojis not found or failed to upload (${result.missing.length}): ${result.missing.join(', ')}`);
       }
     }
+    const status = await savedStatus().catch(() => null);
+    if (status) readyClient.user.setStatus(status);
+    startUnameScanner();
     if (!slash.length) return;
     for (let attempt = 1; attempt <= COMMAND_REGISTER_ATTEMPTS; attempt++) {
       try {

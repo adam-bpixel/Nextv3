@@ -5,6 +5,7 @@ import { errorReply, successReply } from '../../core/usage-replies';
 import { getJailSetup } from '../setup/setup.model';
 import { addJailLog, getJailedMember, listJailLogs, removeJailedMember, setJailedMember } from './jail.model';
 import { jailInfoEmbed, jailLogsEmbed } from './jail.ui';
+import { notifyMember, reasonLines } from './moderation.dm';
 import { NO_REASON } from './moderation.service';
 
 const NOT_CONFIGURED_TEXT = 'The jail system is not fully set up.\nUse: `/setup` to configure the jailed role and jailer roles.';
@@ -54,6 +55,7 @@ export const jailLogic = {
       await logChannel.send({ content: `<@${member.id}> was jailed by <@${ctx.user.id}>.\nReason: ${reason}`, allowedMentions: { parse: [] } }).catch(() => undefined);
     }
 
+    await notifyMember(member.user, 'You Were Jailed', [`Server: \`${guild.name}\``, ...reasonLines(reason), `By: \`${ctx.user.username}\``]);
     await ctx.send(successReply(ctx, `- Jailed **${member.user.username}**.\n- Reason: ${reason}`));
     return 'completed';
   },

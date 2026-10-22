@@ -3,8 +3,8 @@ import type { Command } from '../../../core/types';
 const command: Command = {
   name: "premium",
   aliases: [],
-  description: "Give or remove premium for a user or a server (bot owner only).",
-  usage: "<add|remove> <user|server> <id> [duration]",
+  description: "Give, remove or list premium for users and servers (bot owner only).",
+  usage: "<add|remove|list> <user|server> [id] [duration]",
   category: "owner",
   logic: "premiumGrant",
   ai: null,

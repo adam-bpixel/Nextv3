@@ -2,7 +2,7 @@ import type { Command } from '../../../core/types';
 
 const command: Command = {
   name: "avatar",
-  aliases: [],
+  aliases: ["a"],
   description: "Show a user's avatar without pinging",
   usage: "",
   category: "Information",

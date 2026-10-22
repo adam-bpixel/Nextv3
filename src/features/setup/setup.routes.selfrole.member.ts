@@ -1,8 +1,10 @@
 import { MessageFlags, type ButtonInteraction, type StringSelectMenuInteraction } from 'discord.js';
+import config from '../../core/config';
 import { defineRoute } from '../../core/types';
+import { cachedColor } from '../theme/theme.model';
 import { themedReplyFor } from '../../core/usage-replies';
 import { getGuildSetup } from './setup.model';
-import { SELFROLE_SELECT_ID, SELFROLE_TOGGLE_PREFIX } from './setup.ui.selfrole';
+import { SELFROLE_SELECT_ID, SELFROLE_TOGGLE_PREFIX, selfRoleLogCard } from './setup.ui.selfrole';
 
 async function toggleSelfRoles(
   interaction: ButtonInteraction | StringSelectMenuInteraction,
@@ -58,9 +60,8 @@ async function toggleSelfRoles(
     if (setup.selfRole?.logChannelId) {
       const logChannel = await guild.channels.fetch(setup.selfRole.logChannelId).catch(() => null);
       if (logChannel?.isTextBased() && logChannel.isSendable()) {
-        await logChannel
-          .send({ content: `<@${member.id}> ${hadRole ? 'lost' : 'received'} the <@&${roleId}> role via **${section.name}**.`, allowedMentions: { parse: [] } })
-          .catch(() => null);
+        const card = selfRoleLogCard(cachedColor(guild.id) ?? config.color, { memberId: member.id, roleId, sectionName: section.name, added: !hadRole, at: Date.now() });
+        await logChannel.send({ ...card, allowedMentions: { parse: [] } }).catch(() => null);
       }
     }
   }

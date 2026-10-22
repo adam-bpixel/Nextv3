@@ -1,5 +1,5 @@
 import { PermissionFlagsBits, Routes } from 'discord.js';
-import config, { fillTemplate } from '../../core/config';
+import config, { fillTemplate, isOwner } from '../../core/config';
 import { discordTimestamp, formatDuration, isDuration, parseDuration, MS_PER_DAY } from '../../core/format';
 import { fail, requireGuild } from '../../core/replies';
 import type { CommandHandler, CommandOutcome } from '../../core/types';
@@ -14,6 +14,7 @@ import {
   setGuildProfileField,
   userPremiumStatus,
 } from './premium.model';
+import { premiumListPayload } from './premium.list';
 import { EFFECT_IDS, FONT_IDS, styleHelpPayload } from './style.ui';
 
 const DEFAULT_PREMIUM_DURATION = 30 * MS_PER_DAY;
@@ -64,9 +65,18 @@ function parseStyle(tokens: string[]): ParsedStyle | { error: string } {
 export const premiumLogic = {
   async premiumGrant(ctx) {
     const [action, type, idRaw, durationRaw] = ctx.args;
+    if (action === 'list') {
+      if (type !== 'user' && type !== 'server') {
+        return usageFailure(ctx, `Say \`user\` or \`server\`.
+Use: \`${ctx.prefix}premium list <user|server>\`.`);
+      }
+      await ctx.send(await premiumListPayload(ctx.client, type, 0, ctx.user.id, ctx.guild?.id ?? null));
+      return 'completed';
+    }
     const id = extractId(idRaw) ?? (await ctx.findUser(2))?.id ?? null;
     if ((action !== 'add' && action !== 'remove') || (type !== 'user' && type !== 'server') || !id) {
-      return usageFailure(ctx, `Say \`add\` or \`remove\`, \`user\` or \`server\`, and give a valid ID.\nUse: \`${ctx.prefix}premium add <user|server> <id> [duration]\`.\nUse: \`${ctx.prefix}premium remove <user|server> <id>\`.`);
+      return usageFailure(ctx, `Say \`add\` or \`remove\`, \`user\` or \`server\`, and give a valid ID.\nUse: \`${ctx.prefix}premium add <user|server> <id> [duration]\`.\nUse: \`${ctx.prefix}premium remove <user|server> <id>\`.
+Use: \`${ctx.prefix}premium list <user|server>\`.`);
     }
     if (action === 'remove') {
       const removed = type === 'server' ? await revokeGuildPremium(id) : await revokeUserPremium(id);
@@ -116,7 +126,7 @@ export const premiumLogic = {
     const guild = await requireGuild(ctx);
     if (!guild) return 'skipped';
     const status = await guildPremiumStatus(guild.id);
-    if (!status) {
+    if (!status && !isOwner(ctx.user.id)) {
       await ctx.send(errorReply(ctx, fillTemplate(config.messages.premiumRequired, { prefix: ctx.prefix })));
       return 'skipped';
     }

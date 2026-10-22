@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createCanvas, loadImage, type Canvas, type Image, type SKRSContext2D } from '@napi-rs/canvas';
 import config from '../../../core/config';
-import { drawAvatar, drawCoverImage, fillRoundedRect, loadFonts, loadIcon, loadIconUncached, nextBackground, RANK_FONT_FAMILY, strokeCurrentPath, truncate } from './shared';
+import { drawAvatar, drawCoverImage, fillRoundedRect, loadAvatar, loadFonts, loadIcon, loadIconUncached, nextBackground, RANK_FONT_FAMILY, strokeCurrentPath, truncate } from './shared';
 import type { RankCardData } from './rankcard';
 
 export interface ProfileServerTag {
@@ -16,6 +16,7 @@ export interface ProfileConnection {
 
 export interface ProfileCardData extends RankCardData {
   handle: string;
+  botName?: string | undefined;
   backgroundURL?: string | null | undefined;
   joinedAt: number | null;
   serverTag: ProfileServerTag | null;
@@ -308,7 +309,7 @@ export async function renderProfileCard(data: ProfileCardData): Promise<Buffer> 
   const avatarY = 215;
   const avatarRadius = 100;
   const [avatar, decoration, badgeIconsRaw, serverTagIcon, connectionIconsRaw] = await Promise.all([
-    loadIconUncached(data.avatarURL),
+    loadAvatar(data.avatarURL),
     loadIconUncached(data.avatarDecorationURL),
     Promise.all(data.badgeURLs.slice(0, MAX_BADGE_ICONS).map((url) => loadIcon(url))),
     data.serverTag?.badgeURL ? loadIcon(data.serverTag.badgeURL) : Promise.resolve(null),
@@ -472,7 +473,10 @@ export async function renderProfileCard(data: ProfileCardData): Promise<Buffer> 
   ctx.font = `12px ${RANK_FONT_FAMILY}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(config.botName, size / 2, cardY + cardH - 20, cardW - 80);
+  ctx.fillText(data.botName ?? config.botName, size / 2, cardY + cardH - 20, cardW - 160);
+  ctx.font = `6px ${RANK_FONT_FAMILY}`;
+  ctx.textAlign = 'right';
+  ctx.fillText('PBC', size - 10, size - 10);
   ctx.restore();
 
   return canvas.toBuffer('image/png');

@@ -131,7 +131,7 @@ export const ownerFleetLogic = {
 
     const container = new ContainerBuilder()
       .setAccentColor(config.color)
-      .addTextDisplayComponents(textDisplay('## 📢 Announcement'))
+      .addTextDisplayComponents(textDisplay('## Announcement'))
       .addSeparatorComponents(sep())
       .addTextDisplayComponents(textDisplay(message));
     const payload = toPayload(container);

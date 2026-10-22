@@ -1,11 +1,13 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, type APIMessageTopLevelComponent } from 'discord.js';
 import config from '../../core/config';
 import type { ReplyPayload } from '../../core/context';
+import { dividerComponent, dividerFile } from '../../core/divider';
 import { ARROW_LEFT_GOLD, ARROW_RIGHT_GOLD } from '../../core/emojis';
 import { cachedColor } from '../theme/theme.model';
 
 export const STYLE_SELECT_ID = 'gpstyle_select:';
 export const STYLE_NAV_PREFIX = 'gpstyle_nav:';
+export const STYLE_TEST_BUTTON_PREFIX = 'gpstyle_test:';
 
 const SEPARATOR = { type: 14, spacing: 1, divider: true };
 const SUMMARY = 'summary';
@@ -68,24 +70,12 @@ function summaryPage(botName: string, prefix: string): object[] {
   return [
     { type: 10, content: `# ${botName} Name Styles` },
     SEPARATOR,
-    { type: 10, content: "- -# **__Change the color, font and effect of the bot's name in this server.__**" },
-    SEPARATOR,
     {
       type: 10,
       content: [
-        '**Usage**',
-        `\`${prefix}guildprofile style <color> [color2] [font] [effect]\``,
-        `\`${prefix}guildprofile style reset\``,
-      ].join('\n'),
-    },
-    SEPARATOR,
-    {
-      type: 10,
-      content: [
-        '**Examples**',
-        `\`${prefix}guildprofile style ff00ff\` : a pink name`,
-        `\`${prefix}guildprofile style ff00ff 800080\` : a pink to purple gradient`,
-        `\`${prefix}guildprofile style ffffff 10 3\` : white, Vampyre font, neon effect`,
+        `- -# **__Usage__** · \`${prefix}gp style <color> [color2] [font] [effect]\``,
+        `- -# **__Reset__** · \`${prefix}gp style reset\``,
+        `- -# **__Example__** · \`${prefix}gp style ffffff 10 3\``,
       ].join('\n'),
     },
   ];
@@ -152,6 +142,7 @@ function navRow(ownerId: string, index: number): ActionRowBuilder<ButtonBuilder>
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(styleNavCustomId(ownerId, index - 1)).setEmoji(ARROW_LEFT_GOLD).setStyle(ButtonStyle.Secondary).setDisabled(index <= low),
     new ButtonBuilder().setCustomId(styleNavCustomId(ownerId, index + 1)).setEmoji(ARROW_RIGHT_GOLD).setStyle(ButtonStyle.Secondary).setDisabled(index >= high),
+    new ButtonBuilder().setCustomId(`${STYLE_TEST_BUTTON_PREFIX}${ownerId}`).setLabel('Test').setStyle(ButtonStyle.Secondary),
   );
 }
 
@@ -159,12 +150,13 @@ export function styleHelpPayload(ownerId: string, botName: string, prefix: strin
   const safeIndex = Math.min(Math.max(index, 0), TOTAL - 1);
   const rows =
     safeIndex === 0
-      ? [SEPARATOR, selectRow(ownerId, safeIndex)]
+      ? [SEPARATOR, dividerComponent(), selectRow(ownerId, safeIndex)]
       : [SEPARATOR, selectRow(ownerId, safeIndex), SEPARATOR, navRow(ownerId, safeIndex).toJSON()];
   const [low, high] = rangeOf(safeIndex);
   return {
     flags: MessageFlags.IsComponentsV2,
     allowedMentions: { parse: [] },
+    ...(safeIndex === 0 ? { files: [dividerFile()] } : {}),
     components: container(
       [
         ...pageParts(safeIndex, botName, prefix),

@@ -324,10 +324,9 @@ export function ticketEventCard(options: TicketEventCardOptions): ReplyPayload {
 
 export function ticketUserNotice(options: TicketEventCardOptions, inviteURL: string | null): ReplyPayload {
   const isOpen = options.event === 'opened';
-  const emoji = isOpen ? '🎫' : '🔒';
   const container = new ContainerBuilder()
     .setAccentColor(isOpen ? 0xa8e6b0 : 0xf07178)
-    .addTextDisplayComponents(text(`## ${emoji} Your Ticket Was ${isOpen ? 'Opened' : 'Closed'}`))
+    .addTextDisplayComponents(text(`## Your Ticket Was ${isOpen ? 'Opened' : 'Closed'}`))
     .addSeparatorComponents(sep())
     .addTextDisplayComponents(text([
       `- __Server__ ﹕ **${options.guildName}**`,

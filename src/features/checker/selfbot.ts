@@ -26,6 +26,20 @@ export async function selfbotApiGet<T>(route: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+export async function selfbotApiPost<T>(route: string, body: unknown): Promise<T> {
+  const authToken = token();
+  if (!authToken) throw new Error('SELFBOT_TOKEN is not configured.');
+
+  const response = await fetch(`https://discord.com/api/v10${route}`, {
+    method: 'POST',
+    headers: { Authorization: authToken, Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) throw new Error(`Discord API returned HTTP ${response.status}.`);
+  return response.json() as Promise<T>;
+}
+
 export function ensureLoggedIn(): Promise<SelfbotClient> {
   if (client) return Promise.resolve(client);
   if (!loginPromise) {

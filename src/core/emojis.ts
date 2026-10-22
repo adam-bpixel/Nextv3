@@ -62,6 +62,7 @@ export let VOICECHECK_DEAFEN_ICON = '<:voicecheck_deafen:1561744567831625738>';
 export let VOICECHECK_MIC_ICON = '<:voicecheck_mic:1561747616994431099>';
 export let PREMIUM_DIAMOND_GRAY_ICON = '<:premium_diamond_gray:1561814803553460255>';
 export let PREMIUM_DIAMOND_BLUE_ICON = '<:premium_diamond_blue:1561814805294227499>';
+export let SETUP_HEADER_ICON = '<:setup_header_gray:1562893822063681609>';
 
 const mutableHelpCategoryIcons: Record<string, string> = {
   Checker: '<:help_checker:1561803056377626735>',
@@ -149,6 +150,7 @@ const STRING_EMOJI_BINDINGS: readonly StringEmojiBinding[] = [
   { name: 'voicecheck_mic', fallback: '<:voicecheck_mic:1561747616994431099>', set: (val) => { VOICECHECK_MIC_ICON = val; } },
   { name: 'premium_diamond_gray', fallback: '<:premium_diamond_gray:1561814803553460255>', set: (val) => { PREMIUM_DIAMOND_GRAY_ICON = val; } },
   { name: 'premium_diamond_blue', fallback: '<:premium_diamond_blue:1561814805294227499>', set: (val) => { PREMIUM_DIAMOND_BLUE_ICON = val; } },
+  { name: 'setup_header_gray', fallback: '<:setup_header_gray:1562893822063681609>', set: (val) => { SETUP_HEADER_ICON = val; } },
 ];
 
 function extractEmojiName(tag: string): string | undefined {

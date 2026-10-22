@@ -1,10 +1,12 @@
 import { requireGuild } from '../../core/replies';
 import type { CommandHandler } from '../../core/types';
+import { getDisabledCommands } from '../server/server.model';
 import { getGuildSecurity } from '../security/security.model';
 import { getCheckerRoles, getGuildSetup, getJailSetup, getMuteSetup, getWarnSetup } from './setup.model';
 import { altTrackerView } from './setup.ui.alttracker';
 import { blacklistView } from './setup.ui.blacklist';
 import { checkerView } from './setup.ui.checker';
+import { commandsView } from './setup.ui.commands';
 import { jailView } from './setup.ui.jail';
 import { muteView } from './setup.ui.mute';
 import { warnView } from './setup.ui.warn';
@@ -43,6 +45,13 @@ export const setupModerationLogic = {
       .filter((id) => guild.channels.cache.has(id))
       .map((id) => ({ id, name: guild.channels.cache.get(id)?.name ?? id }));
     await ctx.send(ephemeral(blacklistView(entries)));
+    return 'completed';
+  },
+
+  async setupCommandsPanel(ctx) {
+    const guild = await requireGuild(ctx);
+    if (!guild) return 'skipped';
+    await ctx.send(ephemeral(commandsView(await getDisabledCommands(guild.id))));
     return 'completed';
   },
 

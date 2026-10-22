@@ -6,6 +6,7 @@ import * as state from './core/state';
 import { BotClient } from './core/client';
 import { attachEvents, loadAll } from './core/loader';
 import { startApiServer } from './api/server';
+import { loadSavedDevice } from './features/botcontrol/botcontrol.model';
 import { bootFleet, destroyAllFleetClients } from './features/fleet/fleet.manager';
 
 const SHUTDOWN_SIGNALS = ['SIGINT', 'SIGTERM'] as const;
@@ -38,6 +39,7 @@ async function main(): Promise<void> {
   warnAboutMisnamedEnvironment();
   await db.connect();
   await state.load();
+  await loadSavedDevice().catch(() => undefined);
   for (const signal of SHUTDOWN_SIGNALS) process.once(signal, (received) => void shutDown(received));
   await client.login(config.token);
   apiServer = startApiServer(client);

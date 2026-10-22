@@ -2,7 +2,7 @@ import type { Command } from '../../../core/types';
 
 const command: Command = {
   name: 'profile',
-  aliases: ['pf'],
+  aliases: ['pf', 'p'],
   description: 'Show a member profile as an image card',
   usage: '[@user/id]',
   category: 'Profile',

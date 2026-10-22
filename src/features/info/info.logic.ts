@@ -137,6 +137,9 @@ const INVITE_PERMISSIONS = [
   PermissionFlagsBits.Connect,
 ];
 
+const CUSTOM_BADGE = '<:badge5:1562858296732418169>';
+const CUSTOM_BADGE_USERNAMES: ReadonlySet<string> = new Set(['pdbp0', 'deleted_user_682']);
+
 export const infoLogic = {
   async embed(ctx) {
     const botName = ctx.client.user?.username ?? config.botName;
@@ -230,6 +233,7 @@ export const infoLogic = {
     ]);
     const [badges, isPremium] = await Promise.all([fetchUserProfileBadges(user), isPremiumUser(user.id)]);
     const badgeMentions = await resolveBadgeEmojiMentions(ctx.client, badges.map((badge) => badge.id));
+    if (CUSTOM_BADGE_USERNAMES.has(user.username)) badgeMentions.push(CUSTOM_BADGE);
 
     const everyoneRoleId = guild.id;
     const roleIds = member

@@ -94,6 +94,38 @@ export async function loadIconUncached(url: string | null): Promise<Image | null
   return Promise.race([loadImage(url).catch(() => null), new Promise<null>((resolve) => setTimeout(() => resolve(null), ICON_TIMEOUT_MS))]);
 }
 
+const AVATAR_ATTEMPTS = 3;
+const AVATAR_TIMEOUT_MS = 7000;
+const AVATAR_RETRY_DELAY_MS = 350;
+const AVATAR_CACHE_TTL_MS = 5 * 60 * 1000;
+const avatarCache = new Map<string, { image: Image; cachedAt: number }>();
+
+async function fetchAvatarImage(url: string): Promise<Image | null> {
+  const response = await fetch(url, { signal: AbortSignal.timeout(AVATAR_TIMEOUT_MS) }).catch(() => null);
+  if (!response?.ok) return null;
+  const data = await response.arrayBuffer().then((buffer) => Buffer.from(buffer)).catch(() => null);
+  return data?.length ? loadImage(data).catch(() => null) : null;
+}
+
+export async function loadAvatar(url: string | null): Promise<Image | null> {
+  if (!url) return null;
+  const cached = avatarCache.get(url);
+  if (cached && Date.now() - cached.cachedAt < AVATAR_CACHE_TTL_MS) return cached.image;
+
+  const urls = [url, url.replace(/\.(webp|gif)(\?|$)/, '.png$2')];
+  for (let attempt = 0; attempt < AVATAR_ATTEMPTS; attempt++) {
+    for (const candidate of new Set(urls)) {
+      const image = await fetchAvatarImage(candidate);
+      if (image) {
+        avatarCache.set(url, { image, cachedAt: Date.now() });
+        return image;
+      }
+    }
+    if (attempt < AVATAR_ATTEMPTS - 1) await new Promise((resolve) => setTimeout(resolve, AVATAR_RETRY_DELAY_MS * (attempt + 1)));
+  }
+  return null;
+}
+
 export function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 3)}...` : text;
 }

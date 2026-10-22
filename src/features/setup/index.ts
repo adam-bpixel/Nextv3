@@ -5,6 +5,7 @@ import { autoRoleRoutes } from './setup.routes.autorole';
 import { blacklistRoutes } from './setup.routes.blacklist';
 import { checkerRoutes } from './setup.routes.checker';
 import { clansRoutes } from './setup.routes.clans';
+import { commandsRoutes } from './setup.routes.commands';
 import { gameFinderRoutes } from './setup.routes.gamefinder';
 import { jailRoutes } from './setup.routes.jail';
 import { levelRolesRoutes } from './setup.routes.levelroles';
@@ -34,4 +35,5 @@ export const routes = [
   ...blacklistRoutes,
   ...prefixRoutes,
   ...checkerRoutes,
+  ...commandsRoutes,
 ];

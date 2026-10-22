@@ -1,5 +1,5 @@
 import { MessageFlags, PermissionFlagsBits, type ButtonInteraction, type ModalSubmitInteraction } from 'discord.js';
-import config from '../../core/config';
+import config, { isOwner } from '../../core/config';
 import { defineRoute } from '../../core/types';
 import { themedReplyFor } from '../../core/usage-replies';
 import { cachedColor } from '../theme/theme.model';
@@ -26,7 +26,7 @@ export const routes = [
       const parsed = SERVERS_PAGE_CUSTOM_ID.exec(interaction.customId);
       if (!parsed) return;
       const [, invokerId, pageText] = parsed as unknown as [string, string, string];
-      if (interaction.user.id !== config.ownerId || interaction.user.id !== invokerId) {
+      if (!isOwner(interaction.user.id) || interaction.user.id !== invokerId) {
         await interaction.reply(themedReplyFor(interaction.guildId, true, 'error', 'Only the bot owner can use this.'));
         return;
       }
@@ -45,7 +45,7 @@ export const routes = [
     name: 'owner:addbot:open',
     match: (interaction): interaction is ButtonInteraction => interaction.isButton() && interaction.customId === ADD_BOT_BUTTON,
     async handle(interaction) {
-      if (interaction.user.id !== config.ownerId) {
+      if (!isOwner(interaction.user.id)) {
         await interaction.reply(themedReplyFor(interaction.guildId, true, 'error', 'Only the bot owner can do that.'));
         return;
       }
@@ -56,7 +56,7 @@ export const routes = [
     name: 'owner:addbot:submit',
     match: (interaction): interaction is ModalSubmitInteraction => interaction.isModalSubmit() && interaction.customId === ADD_BOT_MODAL,
     async handle(interaction) {
-      if (interaction.user.id !== config.ownerId) {
+      if (!isOwner(interaction.user.id)) {
         await interaction.reply(themedReplyFor(interaction.guildId, true, 'error', 'Only the bot owner can do that.'));
         return;
       }

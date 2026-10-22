@@ -305,7 +305,12 @@ async function disabledCmd(ctx: Parameters<CommandHandler>[0]) {
     if (!commandName) return fail(ctx, `Give a command name.\nUse: \`${ctx.prefix}disabledcmd disable <command name>\`.`);
     if (!client.commands.has(commandName)) return fail(ctx, `\`${commandName}\` isn't a known command.`);
     if (commandName === 'disabledcmd') return fail(ctx, "You can't disable this command.");
-    const changed = await disableCommandFor(guild.id, commandName);
+    let changed: boolean;
+    try {
+      changed = await disableCommandFor(guild.id, commandName);
+    } catch (error) {
+      return fail(ctx, error instanceof Error ? error.message : 'Could not disable that command.');
+    }
     if (!changed) return fail(ctx, `\`${commandName}\` is already disabled.`);
     await ctx.send(successReply(ctx, `- Disabled \`${commandName}\` in this server.`));
     return 'completed' as const;

@@ -1,6 +1,6 @@
 import { ComponentType, MessageFlags } from 'discord.js';
 import { claimMessage, releaseMessage } from '../../core/collectorClaims';
-import config from '../../core/config';
+import config, { isOwner } from '../../core/config';
 import { requireGuild } from '../../core/replies';
 import type { CommandHandler } from '../../core/types';
 import { errorReply, successReply } from '../../core/usage-replies';
@@ -15,7 +15,7 @@ export const ownerServersLogic = {
     const guild = await requireGuild(ctx);
     if (!guild) return 'skipped';
     const isGuildOwner = guild.ownerId === ctx.user.id;
-    const isBotOwner = ctx.user.id === config.ownerId;
+    const isBotOwner = isOwner(ctx.user.id);
     if (!isGuildOwner && !isBotOwner) {
       await ctx.send(errorReply(ctx, 'Only the server owner can use this command.'));
       return 'skipped';
