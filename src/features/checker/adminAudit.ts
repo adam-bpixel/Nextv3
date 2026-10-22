@@ -1,6 +1,6 @@
 import type { Client } from 'discord.js';
 import { permissionBit } from '../../core/permissions';
-import { ensureLoggedIn, isConfigured } from './selfbot';
+import { findSelfbotGuild, isConfigured } from './selfbot';
 
 const ADMINISTRATOR_BIT = permissionBit('administrator');
 const AVATAR_SIZE = 256;
@@ -124,8 +124,7 @@ async function auditGuildBots(guild: GuildLike): Promise<GuildBotAudit> {
 
 export async function findGuildAdmins(client: Client, guildId: string): Promise<GuildAdminAudit | null> {
   const botGuild = client.guilds.cache.get(guildId);
-  const self = isConfigured() ? await ensureLoggedIn().catch(() => null) : null;
-  const selfGuild = self?.guilds.cache.get(guildId);
+  const selfGuild = isConfigured() ? await findSelfbotGuild(guildId).catch(() => null) : null;
 
   const [botAudit, selfAudit] = await Promise.all([
     botGuild ? auditGuild(botGuild).catch(() => null) : Promise.resolve(null),
@@ -153,7 +152,6 @@ export async function findGuildBots(client: Client, guildId: string): Promise<Gu
   if (botGuild) return auditGuildBots(botGuild);
 
   if (!isConfigured()) return null;
-  const self = await ensureLoggedIn().catch(() => null);
-  const selfGuild = self?.guilds.cache.get(guildId);
+  const selfGuild = await findSelfbotGuild(guildId).catch(() => null);
   return selfGuild ? auditGuildBots(selfGuild) : null;
 }

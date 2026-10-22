@@ -2,7 +2,7 @@ import type { Client } from 'discord.js';
 import { isRecord } from '../../core/json';
 import type { PermissionName } from '../../core/permissions';
 import { dangerousPermissionsOf, type PermissionsLike } from './checker.service';
-import { ensureLoggedIn, isConfigured } from './selfbot';
+import { ensureAllLoggedIn, isConfigured } from './selfbot';
 
 export interface MutualGuildEntry {
   id: string;
@@ -91,29 +91,38 @@ function mutualGuildIds(profile: unknown): string[] | null {
 const PROFILE_CACHE_TTL_MS = 5 * 60 * 1000;
 const profileCache = new Map<string, { at: number; profile: unknown }>();
 
-async function cachedProfile(self: { users: { fetch(id: string): Promise<{ getProfile(): Promise<unknown> }> } }, userId: string): Promise<unknown> {
-  const cached = profileCache.get(userId);
+async function cachedProfile(self: { user: { id: string } | null; users: { fetch(id: string): Promise<{ getProfile(): Promise<unknown> }> } }, userId: string): Promise<unknown> {
+  const cacheKey = `${self.user?.id ?? 'self'}:${userId}`;
+  const cached = profileCache.get(cacheKey);
   if (cached && Date.now() - cached.at < PROFILE_CACHE_TTL_MS) return cached.profile;
   const target = await self.users.fetch(userId);
   const profile: unknown = await target.getProfile();
-  profileCache.set(userId, { at: Date.now(), profile });
+  profileCache.set(cacheKey, { at: Date.now(), profile });
   return profile;
 }
 
 async function selfbotCandidates(userId: string): Promise<GuildLike[]> {
   if (!isConfigured()) return [];
-  return ensureLoggedIn()
-    .then(async (self) => {
-      const ids = mutualGuildIds(await cachedProfile(self, userId));
-      if (!ids) return [...self.guilds.cache.values()];
-      const resolved: GuildLike[] = [];
-      for (const id of ids) {
-        const guild = self.guilds.cache.get(id);
-        if (guild) resolved.push(guild);
+  const clients = await ensureAllLoggedIn().catch(() => []);
+  const perClient = await Promise.all(
+    clients.map(async (self): Promise<GuildLike[]> => {
+      try {
+        const ids = mutualGuildIds(await cachedProfile(self, userId));
+        if (!ids) return [...self.guilds.cache.values()];
+        const resolved: GuildLike[] = [];
+        for (const id of ids) {
+          const guild = self.guilds.cache.get(id);
+          if (guild) resolved.push(guild);
+        }
+        return resolved;
+      } catch {
+        return [];
       }
-      return resolved;
-    })
-    .catch(() => []);
+    }),
+  );
+  const unique = new Map<string, GuildLike>();
+  for (const guild of perClient.flat()) if (!unique.has(guild.id)) unique.set(guild.id, guild);
+  return [...unique.values()];
 }
 
 export async function getMutualGuilds(client: Client, userId: string): Promise<MutualGuildEntry[]> {

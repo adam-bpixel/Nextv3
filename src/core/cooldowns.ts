@@ -17,6 +17,8 @@ export const COOLDOWNS: Record<string, number> = {
   checkvoice: T_MEDIUM,
   fullcheck: T_SERVER,
   listadmins: T_MEDIUM,
+  oldmembers: T_MEDIUM,
+  newmembers: T_MEDIUM,
   myserver: T_MEDIUM,
   topma: T_MEDIUM,
   listbots: T_LIGHT,

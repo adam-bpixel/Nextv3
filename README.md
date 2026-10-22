@@ -97,7 +97,7 @@ All runtime data persists exclusively in MongoDB. Database name defaults to the 
 | `OWNER_ID` | — | User ID for owner-only commands |
 | `PREFIX` | — | Command prefix (default: `&`) |
 | `MONGODB_DB` | — | Database name (defaults to `slug` from config.json) |
-| `SELFBOT_TOKEN` | — | Second account for voice/presence data in unreachable servers |
+| `SELFBOT_TOKEN` | — | Extra account(s) for voice/presence data in unreachable servers. Separate several tokens with commas |
 | `SUPPORT_SERVER_URL` | — | Support server link in help menu |
 | `WEBHOOK_URL` | — | Webhook for hosting generated images |
 | `API_PORT` | — | REST API port (requires `API_KEY` to enable) |

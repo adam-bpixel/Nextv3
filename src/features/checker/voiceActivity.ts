@@ -1,5 +1,5 @@
 import type { Client, Guild } from 'discord.js';
-import { ensureLoggedIn, isConfigured } from './selfbot';
+import { ensureAllLoggedIn, isConfigured } from './selfbot';
 
 export interface VoiceLocationMember {
   id: string;
@@ -45,8 +45,7 @@ interface GuildLike {
 async function allGuilds(client: Client): Promise<GuildLike[]> {
   const guilds: GuildLike[] = [...client.guilds.cache.values()];
   if (!isConfigured()) return guilds;
-  const self = await ensureLoggedIn().catch(() => null);
-  if (self) guilds.push(...self.guilds.cache.values());
+  for (const self of await ensureAllLoggedIn().catch(() => [])) guilds.push(...self.guilds.cache.values());
   return guilds;
 }
 

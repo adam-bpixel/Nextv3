@@ -3,11 +3,14 @@ import type { CommandHandler } from '../../core/types';
 import type { Ctx } from '../../core/context';
 import { ActivityType, type User } from 'discord.js';
 import { findGuildAdmins, findGuildBots } from './adminAudit';
+import config from '../../core/config';
+import { cachedColor } from '../theme/theme.model';
 import { getMutualGuilds } from './mutualGuilds';
+import { findOldestMembers, oldMembersPage } from './oldMembers';
 import { findVoiceLocations, getMyServerRank, getVoiceLeaderboard } from './voiceActivity';
 import { resolveTarget } from './userSearch';
 import * as ui from './checker.ui';
-import { ensureLoggedIn, isConfigured } from './selfbot';
+import { ensureAllLoggedIn, isConfigured } from './selfbot';
 import type { UserPresenceData } from './checker.ui';
 import { cloneEmojis, cloneRoles, cloneSoundboard, cloneStickers } from './cloneAssets.logic';
 
@@ -66,8 +69,8 @@ async function findPresence(ctx: Ctx, userId: string): Promise<UserPresenceData 
   }
 
   if (!isConfigured()) return null;
-  const self = await ensureLoggedIn().catch(() => null);
-  const selfPresence = self && [...self.guilds.cache.values()]
+  const selfPresence = (await ensureAllLoggedIn().catch(() => []))
+    .flatMap((self) => [...self.guilds.cache.values()])
     .map((guild) => guild.presences.cache.get(userId))
     .find((presence) => presence !== undefined);
 
@@ -145,6 +148,30 @@ export const checkerLogic = {
     if (!ctx.guild) return fail(ctx, 'Run this inside a server to see its image.');
     const { entry, rankNumber, totalRanked } = await getMyServerRank(ctx.client, ctx.guild);
     await ctx.send(await ui.myServerBannerPage(entry, rankNumber, totalRanked));
+    return 'completed';
+  },
+
+  async newmembers(ctx) {
+    const rawArg = ctx.args[0]?.replace(/[<@!&#>]/g, '').trim() ?? '';
+    const guildId = /^\d{15,22}$/.test(rawArg) ? rawArg : ctx.guild?.id;
+    if (!guildId) return fail(ctx, 'Give a server ID, or run this inside a server.');
+
+    const result = await findOldestMembers(ctx.client, guildId, 'new');
+    if (!result) return fail(ctx, 'Neither the bot nor the selfbot is in that server.');
+
+    await ctx.send(oldMembersPage(result, 0, ctx.user.id, (ctx.guild ? cachedColor(ctx.guild.id) : undefined) ?? config.color));
+    return 'completed';
+  },
+
+  async oldmembers(ctx) {
+    const rawArg = ctx.args[0]?.replace(/[<@!&#>]/g, '').trim() ?? '';
+    const guildId = /^\d{15,22}$/.test(rawArg) ? rawArg : ctx.guild?.id;
+    if (!guildId) return fail(ctx, 'Give a server ID, or run this inside a server.');
+
+    const result = await findOldestMembers(ctx.client, guildId);
+    if (!result) return fail(ctx, "Neither the bot nor the selfbot is in that server.");
+
+    await ctx.send(oldMembersPage(result, 0, ctx.user.id, (ctx.guild ? cachedColor(ctx.guild.id) : undefined) ?? config.color));
     return 'completed';
   },
 

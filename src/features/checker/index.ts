@@ -14,12 +14,14 @@ import {
   voiceCheckPage,
 } from './checker.ui';
 import { getMutualGuilds } from './mutualGuilds';
+import { oldMembersRoutes } from './oldMembers';
 import { findVoiceLocations, getMyServerRank, getVoiceLeaderboard } from './voiceActivity';
 
 const CUSTOM_ID = /^checker:(fc|cr|cv|la|lb):(\d{15,22}):(\d{15,22}):(-?\d+)$/;
 const TOPMA_NAV_ID = /^checker:tm:(\d{15,22}):(-?\d+)$/;
 
 export const routes = [
+  ...oldMembersRoutes,
   defineRoute<ButtonInteraction>({
     name: 'checker:nav',
     match: (interaction): interaction is ButtonInteraction => interaction.isButton() && CUSTOM_ID.test(interaction.customId),
