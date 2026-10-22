@@ -1,4 +1,4 @@
-import { ContainerBuilder, type Client } from 'discord.js';
+import { ContainerBuilder } from 'discord.js';
 import config from '../../core/config';
 import type { CommandHandler } from '../../core/types';
 import { errorReply, successReply } from '../../core/usage-replies';
@@ -17,30 +17,25 @@ import {
 import { isFleetBotOnline, startFleetBot, stopFleetBot } from '../fleet/fleet.manager';
 import { usageFailure } from './owner.logic.helpers';
 
-const TOKEN_SHAPE = /^[\w-]{20,}\.[\w-]{5,10}\.[\w-]{20,}$/;
+const TOKEN_SHAPE = /^[\w-]{20,}\.[\w-]{4,}\.[\w-]{20,}$/;
 
 export interface AddFleetBotResult {
   ok: boolean;
   message: string;
 }
 
-async function emojisServerInvite(mainClient: Client | undefined): Promise<string | null> {
-  if (!mainClient || !config.emojisServerId) return null;
-  const guild = mainClient.guilds.cache.get(config.emojisServerId) ?? (await mainClient.guilds.fetch(config.emojisServerId).catch(() => null));
-  if (!guild) return null;
-  const channel = guild.channels.cache.find(
-    (item) => item.isTextBased() && !item.isThread() && item.isSendable() && item.permissionsFor(mainClient.user?.id ?? '')?.has('CreateInstantInvite'),
-  );
-  if (!channel?.isTextBased() || channel.isThread() || !channel.isSendable()) return null;
-  const invite = await channel.createInvite({ maxAge: 0, maxUses: 0, unique: false, reason: 'Give a new fleet bot access to the shared emoji server' }).catch(() => null);
-  return invite?.url ?? null;
+function parseLoginErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/disallowedintents|privileged intent/i.test(message)) {
+    return 'Discord rejected login: You must enable Privileged Gateway Intents (Presence, Server Members, Message Content) in the Discord Developer Portal for this bot.';
+  }
+  if (/improper token|an invalid token|unauthorized/i.test(message)) {
+    return 'Discord rejected that token: The token is invalid or has been reset.';
+  }
+  return `Discord rejected login: ${message.slice(0, 200)}`;
 }
 
-function withEmojiInvite(message: string, inviteUrl: string | null): string {
-  return inviteUrl ? `${message}\n- Invite it to the shared emoji server so it can use the bot's custom emojis: ${inviteUrl}` : message;
-}
-
-export async function addFleetBotFromToken(token: string, name: string | undefined, addedBy: string, mainClient?: Client): Promise<AddFleetBotResult> {
+export async function addFleetBotFromToken(token: string, name: string | undefined, addedBy: string): Promise<AddFleetBotResult> {
   if (!TOKEN_SHAPE.test(token)) return { ok: false, message: "That doesn't look like a valid bot token." };
 
   const existing = await findFleetBotByToken(token);
@@ -48,10 +43,10 @@ export async function addFleetBotFromToken(token: string, name: string | undefin
     if (isFleetBotOnline(existing.id)) return { ok: false, message: `That bot is already registered and online as **${existing.name}** (#${existing.id}).` };
     try {
       const client = await startFleetBot(existing);
-      const inviteUrl = await emojisServerInvite(mainClient);
-      return { ok: true, message: withEmojiInvite(`- Reconnected **${client.user?.tag ?? existing.name}** (#${existing.id}).`, inviteUrl) };
-    } catch {
-      return { ok: false, message: "That token is registered but Discord rejected the login. It may be invalid or revoked." };
+      return { ok: true, message: `- Reconnected **${client.user?.tag ?? existing.name}** (#${existing.id}).` };
+    } catch (error) {
+      console.error(`Failed to reconnect fleet bot "${existing.name}":`, error);
+      return { ok: false, message: parseLoginErrorMessage(error) };
     }
   }
 
@@ -61,11 +56,11 @@ export async function addFleetBotFromToken(token: string, name: string | undefin
   try {
     const client = await startFleetBot(bot);
     await saveFleetBot({ ...bot, name: client.user?.tag ?? bot.name, status: 'online' });
-    const inviteUrl = await emojisServerInvite(mainClient);
-    return { ok: true, message: withEmojiInvite(`- Added and logged in as **${client.user?.tag ?? bot.name}** (#${id}).`, inviteUrl) };
-  } catch {
+    return { ok: true, message: `- Added and logged in as **${client.user?.tag ?? bot.name}** (#${id}).` };
+  } catch (error) {
+    console.error(`Failed to start fleet bot "${bot.name}":`, error);
     await deleteFleetBot(id);
-    return { ok: false, message: "Discord rejected that token. Double-check it and try again." };
+    return { ok: false, message: parseLoginErrorMessage(error) };
   }
 }
 

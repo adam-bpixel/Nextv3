@@ -22,6 +22,7 @@ export const COOLDOWNS: Record<string, number> = {
   listbots: T_LIGHT,
   cloneemoji: T_CLONE,
   clonesoundboard: T_CLONE,
+  cloneroles: T_CLONE,
   clonestickers: T_CLONE,
 
   // Clans
@@ -116,9 +117,6 @@ export const COOLDOWNS: Record<string, number> = {
   workmode: 0,
   sendsuggest: T_LIGHT,
   announecement: T_MEDIUM,
-  usebot: T_MEDIUM,
-  addbot: T_MEDIUM,
-  removebot: T_MEDIUM,
 
   // Premium
   guildprofile: T_LIGHT,

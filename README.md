@@ -102,7 +102,7 @@ All runtime data persists exclusively in MongoDB. Database name defaults to the 
 | `WEBHOOK_URL` | — | Webhook for hosting generated images |
 | `API_PORT` | — | REST API port (requires `API_KEY` to enable) |
 | `API_KEY` | — | REST API authentication key |
-| `EMOJIS_SERVER_ID` | — | Guild ID for custom emoji storage |
+| `EMOJIS` | `false` | `true` uploads the bot's custom emojis to the bot itself (application emojis) on startup |
 
 ### Discord Intents
 

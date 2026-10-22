@@ -63,7 +63,7 @@ export const routes = [
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const token = interaction.fields.getTextInputValue('token').trim();
       const name = interaction.fields.getTextInputValue('name').trim() || undefined;
-      const result = await addFleetBotFromToken(token, name, interaction.user.id, interaction.client);
+      const result = await addFleetBotFromToken(token, name, interaction.user.id);
       await interaction.editReply(themedReplyFor(interaction.guildId, true, result.ok ? 'success' : 'error', result.message));
     },
   }),

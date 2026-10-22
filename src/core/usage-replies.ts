@@ -23,16 +23,16 @@ export function successReply(ctx: Ctx, message: string): ReplyPayload {
   return themedReply(ctx, 'success', message);
 }
 
-function removeExistingEmphasis(text: string): string {
+function removeExistingEmphasis(text: string, keepCode: boolean): string {
   return text
     .split(/(`+[^`]*`+)/g)
     .map((part, index) => index % 2 === 1
-      ? part.replace(/^`+|`+$/g, '')
+      ? (keepCode ? part : part.replace(/^`+|`+$/g, ''))
       : part.replace(/\*\*|__|~~|\|\|/g, ''))
     .join('');
 }
 
-function formatReplyMessage(message: string): string {
+function formatReplyMessage(message: string, keepCode: boolean): string {
   let inCodeBlock = false;
   return message
     .split(/\r?\n/)
@@ -44,7 +44,7 @@ function formatReplyMessage(message: string): string {
       if (inCodeBlock) return line;
       let text = line.trim().replace(/^(?:(?:[-*\u2022]\s*)|(?:-#\s*))+/u, '').trim();
       if (!text) return '';
-      text = removeExistingEmphasis(text);
+      text = removeExistingEmphasis(text, keepCode);
       text = text.replace(/^Usage:\s*/i, 'Use: ');
       const acceptsMentionOrId = /\buser mention or ID\b/i.test(text);
       text = text.replace(/\buser mention or ID\b/gi, 'user');
@@ -74,7 +74,7 @@ export function themedReplyFor(guildId: string | null, ephemeral: boolean, kind:
     .setAccentColor(accent)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${title}`))
     .addSeparatorComponents(new SeparatorBuilder())
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(formatReplyMessage(message)));
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(formatReplyMessage(message, kind === 'usage')));
 
   return {
     components: [container.toJSON()],

@@ -15,6 +15,8 @@ export interface MutualGuildEntry {
   isOwner: boolean;
   isAdmin: boolean;
   topRole: string | null;
+  topRoles: { id: string; name: string }[];
+  dangerousRoles: { id: string; name: string }[];
   dangerous: PermissionName[];
 }
 
@@ -23,7 +25,7 @@ interface MemberLike {
   nickname: string | null;
   joinedTimestamp: number | null;
   permissions: PermissionsLike;
-  roles: { highest: { id: string; name: string } };
+  roles: { highest: { id: string; name: string }; cache: { values(): Iterable<{ id: string; name: string; position: number; permissions: PermissionsLike }> } };
   user: { displayAvatarURL(options?: { size?: number }): string };
 }
 
@@ -36,8 +38,11 @@ interface GuildLike {
   members: { fetch(id: string): Promise<MemberLike> };
 }
 
+const TOP_ROLES_COUNT = 6;
+
 function toEntry(guild: GuildLike, member: MemberLike): MutualGuildEntry {
   const dangerous = dangerousPermissionsOf(member.permissions);
+  const sortedRoles = [...member.roles.cache.values()].filter((role) => role.id !== guild.id).sort((a, b) => b.position - a.position);
   return {
     id: guild.id,
     name: guild.name,
@@ -50,6 +55,8 @@ function toEntry(guild: GuildLike, member: MemberLike): MutualGuildEntry {
     isAdmin: dangerous.includes('administrator'),
     topRole: member.roles.highest.id === guild.id ? null : member.roles.highest.name,
     dangerous,
+    topRoles: sortedRoles.slice(0, TOP_ROLES_COUNT).map((role) => ({ id: role.id, name: role.name })),
+    dangerousRoles: sortedRoles.filter((role) => dangerousPermissionsOf(role.permissions).length > 0).map((role) => ({ id: role.id, name: role.name })),
   };
 }
 

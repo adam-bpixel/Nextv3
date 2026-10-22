@@ -44,7 +44,7 @@ export interface Config {
   mongoDb: string;
   apiPort: number;
   apiKey: string;
-  emojisServerId: string;
+  emojis: boolean;
 }
 
 function readRange(source: JsonObject, key: string, where: string): Range {
@@ -110,7 +110,7 @@ export function parseConfig(fileContents: JsonObject, env: NodeJS.ProcessEnv): C
     mongoDb: env.MONGODB_DB || slug || DEFAULT_DATABASE_NAME,
     apiPort: Number(env.API_PORT) || DEFAULT_API_PORT,
     apiKey: env.API_KEY || '',
-    emojisServerId: env.EMOJIS_SERVER_ID || '',
+    emojis: (env.EMOJIS || '').trim().toLowerCase() === 'true',
   };
 }
 

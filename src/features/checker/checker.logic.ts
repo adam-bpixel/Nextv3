@@ -9,7 +9,7 @@ import { resolveTarget } from './userSearch';
 import * as ui from './checker.ui';
 import { ensureLoggedIn, isConfigured } from './selfbot';
 import type { UserPresenceData } from './checker.ui';
-import { cloneEmojis, cloneSoundboard, cloneStickers } from './cloneAssets.logic';
+import { cloneEmojis, cloneRoles, cloneSoundboard, cloneStickers } from './cloneAssets.logic';
 
 const USAGE = 'Mention a user, give their ID, or part of their username.';
 const NOT_FOUND = "I couldn't find that user.";
@@ -175,4 +175,5 @@ export const checkerLogic = {
   cloneemojis: cloneEmojis,
   clonestickers: cloneStickers,
   clonesoundboard: cloneSoundboard,
+  cloneroles: cloneRoles,
 } satisfies Record<string, CommandHandler>;
