@@ -17,6 +17,7 @@ export type MemberOrder = 'old' | 'new';
 
 export interface OldMemberEntry {
   id: string;
+  name: string;
   joinedAt: number;
 }
 
@@ -27,10 +28,10 @@ export interface OldMembersResult {
   entries: OldMemberEntry[];
 }
 
-function sortedMembers(members: Iterable<{ id: string; joinedTimestamp: number | null; user: { bot: boolean } }>, order: MemberOrder): OldMemberEntry[] {
+function sortedMembers(members: Iterable<{ id: string; displayName: string; joinedTimestamp: number | null; user: { bot: boolean } }>, order: MemberOrder): OldMemberEntry[] {
   return [...members]
     .filter((member) => !member.user.bot && member.joinedTimestamp !== null)
-    .map((member) => ({ id: member.id, joinedAt: member.joinedTimestamp ?? 0 }))
+    .map((member) => ({ id: member.id, name: member.displayName, joinedAt: member.joinedTimestamp ?? 0 }))
     .sort((a, b) => (order === 'old' ? a.joinedAt - b.joinedAt : b.joinedAt - a.joinedAt))
     .slice(0, OLD_MEMBERS_LIMIT);
 }
@@ -58,6 +59,10 @@ export async function findOldestMembers(client: Client, guildId: string, order: 
   return (await fromBot(client, guildId, order)) ?? (await fromSelfbot(guildId, order));
 }
 
+function profileName(name: string): string {
+  return name.replace(/[[\]\\]/g, '').trim() || 'Unknown';
+}
+
 function navCustomId(order: MemberOrder, invokerId: string, guildId: string, page: number): string {
   return `checker:om:${order}:${invokerId}:${guildId}:${page}`;
 }
@@ -76,7 +81,7 @@ export function oldMembersPage(result: OldMembersResult, page: number, invokerId
   if (!shown.length) {
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent('No members were found in this server.'));
   } else {
-    const lines = shown.map((entry, index) => `${numberEmoji(start + index + 1)} <@${entry.id}> \`${new Date(entry.joinedAt).toISOString().slice(0, 10)}\``);
+    const lines = shown.map((entry, index) => `${numberEmoji(start + index + 1)} [${profileName(entry.name)}](https://discord.com/users/${entry.id}) \`${new Date(entry.joinedAt).toISOString().slice(0, 10)}\``);
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
   }
 
